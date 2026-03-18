@@ -2,10 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#0d1117">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>畑のこよみ番</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>
@@ -28,7 +25,7 @@
     font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
     background: var(--bg);
     color: var(--text);
-    padding: 12px;
+    padding: 20px;
     max-width: 720px;
     margin: 0 auto;
     line-height: 1.8;
@@ -36,12 +33,13 @@
 
   header {
     text-align: center;
-    padding: 30px 0 20px;
+    padding: 20px 0 16px;
     border-bottom: 1px solid var(--border);
     margin-bottom: 24px;
   }
-  header h1 { font-size: 1.5em; font-weight: 400; letter-spacing: 0.15em; color: var(--accent); }
-  header .date-line { color: var(--text-dim); font-size: 0.85em; margin-top: 8px; }
+  header .logo { max-width: 280px; width: 60%; height: auto; margin-bottom: 8px; }
+  header h1 { font-size: 1.3em; font-weight: 400; letter-spacing: 0.2em; color: var(--accent); margin-top: 4px; }
+  header .date-line { color: var(--text-dim); font-size: 0.85em; margin-top: 6px; }
 
   .card {
     background: var(--surface);
@@ -110,8 +108,7 @@
     border-top: 1px solid var(--border);
   }
 
-  #map { height: 250px; border-radius: 8px; margin: 10px 0; }
-  @media (min-width: 600px) { #map { height: 350px; } }
+  #map { height: 300px; border-radius: 8px; margin: 10px 0; }
   .terrain-info { margin-top: 12px; }
   .terrain-info .row { border-bottom: 1px solid rgba(48,54,61,0.3); }
   .terrain-loading { text-align: center; color: var(--text-dim); font-size: 0.85em; padding: 8px; }
@@ -123,7 +120,8 @@
 <body>
 
 <header>
-  <h1>畑のこよみ番</h1>
+  <img src="logo.png" alt="NEO百姓" class="logo" onerror="this.style.display='none'" />
+  <h1>TENKI＆KOYOMI</h1>
   <div class="date-line" id="dateLine"></div>
 </header>
 
