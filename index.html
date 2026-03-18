@@ -43,7 +43,7 @@
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
     background: url('bg.jpg') center top / cover no-repeat;
-    opacity: 0.10;
+    opacity: 0.18;
     z-index: -2;
     pointer-events: none;
   }
@@ -1252,9 +1252,41 @@ function render() {
 
   let h = '';
 
-  // ===== BD暦 =====
+  // ===== ① 季節のこよみ =====
   h += `<div class="card">
-    <h2>今日の畑しごと — BD暦（バイオダイナミック農法暦）</h2>
+    <h2>季節のこよみ</h2>
+    <div style="text-align:center;padding:16px 0 8px">
+      <div style="font-size:0.82em;color:var(--text-dim);margin-bottom:4px">二十四節気</div>
+      <div style="font-size:1.5em;font-weight:500;letter-spacing:0.15em">${sk.name}</div>
+      <div style="font-size:0.85em;color:var(--text-dim);margin-top:2px">（${sk.r}）</div>
+    </div>
+    <div class="explain">
+      <p>${sk.desc}</p>
+    </div>
+    <div style="text-align:center;padding:14px 0 8px;margin-top:12px;border-top:1px solid var(--border)">
+      <div style="font-size:0.82em;color:var(--accent);margin-bottom:4px">七十二候</div>
+      <div style="font-size:1.2em;font-weight:500;letter-spacing:0.1em">${ko.name}</div>
+      <div style="font-size:0.85em;color:var(--text-dim);margin-top:2px">（${ko.r}）</div>
+    </div>
+    <div class="explain">
+      <p>${ko.desc}</p>
+    </div>
+    <div style="text-align:center;padding:12px 0 4px;margin-top:12px;border-top:1px solid var(--border)">
+      <span class="moon-emoji">${mp.emoji}</span>
+      <span style="font-size:0.95em">${mp.name}　月齢 ${mp.age.toFixed(1)}</span>
+    </div>
+  </div>`;
+
+  // ===== ② 今日の天気 =====
+  h += `<div class="card" id="weatherCard">
+    <h2>今日の天気 — ${CFG.name}</h2>
+    <div id="weatherContent" class="terrain-loading">気象データを取得しています...</div>
+  </div>`;
+
+  // ===== ③ 今日の畑しごと =====
+  const cropHint = getCropHint(now.getMonth() + 1, mz.sign.bdEn);
+  h += `<div class="card">
+    <h2>今日の畑しごと — バイオダイナミック農法暦</h2>
     <div class="bd-hero ${bd.heroClass}">
       <span class="bd-icon">${bd.icon}</span>
       <span class="bd-name">${bd.label}</span>
@@ -1263,47 +1295,19 @@ function render() {
     <div class="explain">
       <p>${bd.what}</p>
       <p>${bd.mechanism}</p>
-      <p style="margin-top:10px"><span style="color:var(--accent)">向いている作業：</span>${bd.good}${(() => { const hint = getCropHint(now.getMonth() + 1, mz.sign.bdEn); return hint ? ' ' + hint : ''; })()}</p>
-      <p><span style="color:var(--fire)">避けた方がよい作業：</span>${bd.avoid}</p>
-      <p style="color:var(--text-dim);font-size:0.88em;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">${bd.note}</p>
+      <div style="margin:14px 0 6px">
+        <div style="text-align:center;font-size:0.82em;color:var(--accent);margin-bottom:6px">向いている作業</div>
+        <p style="text-align:left">${bd.good}${cropHint ? ' ' + cropHint : ''}</p>
+      </div>
+      <div style="margin:14px 0 6px">
+        <div style="text-align:center;font-size:0.82em;color:var(--fire);margin-bottom:6px">避けた方がよい作業</div>
+        <p style="text-align:left">${bd.avoid}</p>
+      </div>
+      <p style="color:var(--text-dim);font-size:0.85em;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">${bd.note}</p>
     </div>
   </div>`;
 
-  // ===== 月 =====
-  h += `<div class="card">
-    <h2>月のようす</h2>
-    <div class="highlight">
-      <span class="moon-emoji">${mp.emoji}</span> ${mp.name}　月齢 ${mp.age.toFixed(1)}
-    </div>
-    <div class="explain">
-      <p>BD暦では、月が空のどの領域を通過しているかで、地上の植物に働く力が変わると考えます。約2〜3日ごとに領域が切り替わり、根・葉・花・実のリズムが巡ります。</p>
-    </div>
-  </div>`;
-
-  // ===== 二十四節気・七十二候 =====
-  h += `<div class="card">
-    <h2>季節のこよみ</h2>
-    <div class="highlight" style="font-size:1.1em">
-      ${sk.name}　<span style="color:var(--text-dim);font-size:0.8em">（${sk.r}）</span>
-    </div>
-    <div class="explain">
-      <p>${sk.desc}</p>
-      <p style="margin-top:14px;padding-top:10px;border-top:1px solid var(--border)">
-        <span style="color:var(--accent);font-size:0.9em">七十二候</span>
-        ${ko.name}　<span style="color:var(--text-dim);font-size:0.85em">（${ko.r}）</span>
-      </p>
-      <p>${ko.desc}</p>
-      <p style="color:var(--text-dim);font-size:0.8em;margin-top:8px">二十四節気は太陽の動きで一年を24に分けた暦。七十二候はそれをさらに約5日ずつに分け、自然の変化を72の言葉で表したもの。</p>
-    </div>
-  </div>`;
-
-  // ===== 今日の天気（太陽・霜リスク統合） =====
-  h += `<div class="card" id="weatherCard">
-    <h2>今日の天気 — ${CFG.name}</h2>
-    <div id="weatherContent" class="terrain-loading">気象データを取得しています...</div>
-  </div>`;
-
-  // ===== 今週の畑ごよみ（BD暦×天気予報統合）=====
+  // ===== ④ 今週の畑ごよみ =====
   h += `<div class="card">
     <h2>今週の畑ごよみ</h2>
     <div class="explain"><p style="font-size:0.85em;color:var(--text-dim);margin-bottom:8px">BD暦と天気予報を組み合わせて、作業に適した日がわかります。</p></div>
@@ -1336,19 +1340,15 @@ function render() {
   }
   h += '</div></div>';
 
-  // ===== 畑の地形 =====
+  // ===== 今日の田んぼ仕事 =====
+  const riceMonth = now.getMonth() + 1;
+  const rice = getRiceInfo(riceMonth);
   h += `<div class="card">
-    <h2>畑の地形</h2>
-    <div id="locationList"></div>
-    <div id="map"></div>
-    <div class="map-instructions">地図上をクリックして場所を選択 → 名前をつけて保存できます</div>
-    <div id="locationSaveUI" style="display:none;margin:10px 0;text-align:center">
-      <input id="locNameInput" type="text" placeholder="地点名（例：メイン畑、田んぼ）"
-        style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px 12px;font-size:0.9em;width:60%;margin-right:6px" />
-      <button id="locSaveBtn" onclick="saveCurrentLocation()"
-        style="background:var(--accent);color:var(--bg);border:none;border-radius:6px;padding:8px 16px;font-size:0.9em;cursor:pointer;font-weight:600">保存</button>
+    <h2>今日の田んぼしごと — ${rice.stage}</h2>
+    <div class="explain">
+      <p>${rice.action}</p>
+      <p style="color:var(--text-dim);font-size:0.88em;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">${rice.detail}</p>
     </div>
-    <div id="terrainInfo" class="terrain-info"></div>
   </div>`;
 
   // ===== 積算温度トラッカー =====
@@ -1369,6 +1369,21 @@ function render() {
         </div>
       </div>
     </div>
+  </div>`;
+
+  // ===== 農地の地形 =====
+  h += `<div class="card">
+    <h2>農地の地形</h2>
+    <div id="locationList"></div>
+    <div id="map"></div>
+    <div class="map-instructions">地図上をクリックして場所を選択 → 名前をつけて保存できます</div>
+    <div id="locationSaveUI" style="display:none;margin:10px 0;text-align:center">
+      <input id="locNameInput" type="text" placeholder="地点名（例：メイン畑、田んぼ）"
+        style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px 12px;font-size:0.9em;width:60%;margin-right:6px" />
+      <button id="locSaveBtn" onclick="saveCurrentLocation()"
+        style="background:var(--accent);color:var(--bg);border:none;border-radius:6px;padding:8px 16px;font-size:0.9em;cursor:pointer;font-weight:600">保存</button>
+    </div>
+    <div id="terrainInfo" class="terrain-info"></div>
   </div>`;
 
   // ===== 設定（フッター付近に小さく折りたたみ） =====
@@ -1758,14 +1773,13 @@ function buildRecord(date, weatherData, dayIndex) {
     } : null,
     // 裏観測データ
     hidden: (() => {
-      const obs = buildHiddenObservations(date, weatherData?.hourly?.surface_pressure?.slice(hStart, hEnd) || []);
-      // 露点温度（最低気温時）
+      const hs = dayIndex * 24, he = hs + 24;
+      const obs = buildHiddenObservations(date, weatherData?.hourly?.surface_pressure?.slice(hs, he) || []);
       if (wx && wx.temp_min != null && wx.humidity_avg != null) {
         obs.dew_point = calcDewPoint(wx.temp_min, wx.humidity_avg);
       }
-      // 土壌水分量
       if (weatherData?.hourly?.soil_moisture_0_to_7cm) {
-        const smSlice = weatherData.hourly.soil_moisture_0_to_7cm.slice(hStart, hEnd);
+        const smSlice = weatherData.hourly.soil_moisture_0_to_7cm.slice(hs, he);
         const validSm = smSlice.filter(v => v != null);
         obs.soil_moisture = validSm.length > 0 ? Math.round(validSm.reduce((a,b) => a+b, 0) / validSm.length * 1000) / 1000 : null;
       }
