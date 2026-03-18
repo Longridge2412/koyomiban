@@ -1,0 +1,1204 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0d1117">
+<title>畑のこよみ番</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-dim: #8b949e;
+    --accent: #7ee787;
+    --warm: #f0c040;
+    --fire: #f47067;
+    --water: #79c0ff;
+    --earth: #d2a679;
+    --air: #b8b8d0;
+    --accent2: #79c0ff;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 12px;
+    max-width: 720px;
+    margin: 0 auto;
+    line-height: 1.8;
+  }
+
+  header {
+    text-align: center;
+    padding: 30px 0 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+  }
+  header h1 { font-size: 1.5em; font-weight: 400; letter-spacing: 0.15em; color: var(--accent); }
+  header .date-line { color: var(--text-dim); font-size: 0.85em; margin-top: 8px; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 22px;
+    margin-bottom: 16px;
+  }
+  .card h2 {
+    font-size: 0.85em;
+    color: var(--text-dim);
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .card .explain {
+    font-size: 0.92em;
+    line-height: 1.9;
+    color: var(--text);
+  }
+  .card .explain p { margin-bottom: 10px; }
+  .card .explain p:last-child { margin-bottom: 0; }
+
+  .highlight {
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 16px 18px;
+    margin: 12px 0;
+    font-size: 1.05em;
+    line-height: 1.9;
+    text-align: center;
+  }
+
+  .bd-tag {
+    display: inline-block;
+    padding: 2px 14px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.9em;
+  }
+  .bd-root   { background: rgba(210,166,121,0.15); color: var(--earth); border: 1px solid rgba(210,166,121,0.4); }
+  .bd-leaf   { background: rgba(121,192,255,0.1);  color: var(--water); border: 1px solid rgba(121,192,255,0.35); }
+  .bd-flower { background: rgba(184,184,208,0.1);  color: var(--air);   border: 1px solid rgba(184,184,208,0.35); }
+  .bd-fruit  { background: rgba(244,112,103,0.1);  color: var(--fire);  border: 1px solid rgba(244,112,103,0.35); }
+
+  .row { display: flex; justify-content: space-between; align-items: baseline; padding: 5px 0; }
+  .row .label { color: var(--text-dim); font-size: 0.85em; }
+  .row .val { font-size: 0.95em; }
+
+  .moon-emoji { font-size: 2em; margin-right: 8px; vertical-align: middle; }
+
+  .week-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.85em; }
+  .week-table th { color: var(--text-dim); font-weight: 400; text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--border); }
+  .week-table td { padding: 5px 8px; border-bottom: 1px solid rgba(48,54,61,0.4); }
+  .week-table tr.today { background: rgba(126,231,135,0.07); }
+  .week-table .note { color: var(--warm); font-size: 0.85em; }
+
+  footer {
+    text-align: center;
+    color: rgba(139,148,158,0.5);
+    font-size: 0.7em;
+    padding: 20px 0;
+    margin-top: 30px;
+    border-top: 1px solid var(--border);
+  }
+
+  #map { height: 250px; border-radius: 8px; margin: 10px 0; }
+  @media (min-width: 600px) { #map { height: 350px; } }
+  .terrain-info { margin-top: 12px; }
+  .terrain-info .row { border-bottom: 1px solid rgba(48,54,61,0.3); }
+  .terrain-loading { text-align: center; color: var(--text-dim); font-size: 0.85em; padding: 8px; }
+  .frost-bar { height: 6px; border-radius: 3px; background: var(--border); margin-top: 4px; overflow: hidden; }
+  .frost-bar-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
+  .map-instructions { font-size: 0.82em; color: var(--text-dim); text-align: center; margin: 6px 0 0; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>畑のこよみ番</h1>
+  <div class="date-line" id="dateLine"></div>
+</header>
+
+<div id="app"><div style="text-align:center;padding:40px;color:var(--text-dim)">計算しています...</div></div>
+
+<footer>畑のこよみ番 v1.0.0 — astronomy-engine + 国土地理院標高API + Open-Meteo気象API</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/astronomy-engine@2.1.19/astronomy.browser.min.js"></script>
+<script>
+'use strict';
+
+let CFG = { lat: 37.59, lon: 139.73, alt: 220, name: '西会津', tz: 9 };
+
+// ===== 複数地点管理 =====
+let savedLocations = [];
+let activeLocationIdx = -1;
+
+function loadLocations() {
+  try {
+    const raw = localStorage.getItem('koyomiban_locations');
+    if (raw) savedLocations = JSON.parse(raw);
+  } catch(e) {}
+}
+function saveLocations() {
+  try { localStorage.setItem('koyomiban_locations', JSON.stringify(savedLocations)); } catch(e) {}
+}
+function addLocation(name, lat, lon, data) {
+  // 同名があれば上書き
+  const idx = savedLocations.findIndex(l => l.name === name);
+  const loc = { name, lat, lon, ...data, savedAt: new Date().toISOString() };
+  if (idx >= 0) savedLocations[idx] = loc;
+  else savedLocations.push(loc);
+  saveLocations();
+  activeLocationIdx = savedLocations.findIndex(l => l.name === name);
+}
+function deleteLocation(name) {
+  savedLocations = savedLocations.filter(l => l.name !== name);
+  saveLocations();
+  activeLocationIdx = -1;
+}
+loadLocations();
+
+// ===== 地図・地形分析の状態変数 =====
+let _currentAnalysis = null;
+let _leafletMap = null;
+let _leafletMarker = null;
+
+// ===== 黄道十二宮 =====
+const ZODIAC = [
+  { start: 0,   bd: '実', bdEn: 'fruit',  element: 'fire' },
+  { start: 30,  bd: '根', bdEn: 'root',   element: 'earth' },
+  { start: 60,  bd: '花', bdEn: 'flower', element: 'air' },
+  { start: 90,  bd: '葉', bdEn: 'leaf',   element: 'water' },
+  { start: 120, bd: '実', bdEn: 'fruit',  element: 'fire' },
+  { start: 150, bd: '根', bdEn: 'root',   element: 'earth' },
+  { start: 180, bd: '花', bdEn: 'flower', element: 'air' },
+  { start: 210, bd: '葉', bdEn: 'leaf',   element: 'water' },
+  { start: 240, bd: '実', bdEn: 'fruit',  element: 'fire' },
+  { start: 270, bd: '根', bdEn: 'root',   element: 'earth' },
+  { start: 300, bd: '花', bdEn: 'flower', element: 'air' },
+  { start: 330, bd: '葉', bdEn: 'leaf',   element: 'water' },
+];
+
+// ===== BD暦の説明 =====
+const BD_INFO = {
+  root: {
+    label: '根の日',
+    what:  '月が「土」の元素を持つ領域を通過しています。この日は植物のエネルギーが地下に向かいやすく、根の成長が促される時間帯です。',
+    mechanism: '土の元素は「冷・乾」の性質を持ちます。植物体内の水分が下方に引かれ、根が充実しやすくなると考えられています。土壌中の微生物の活動にも影響があるとされます。',
+    good:  '大根・人参・たまねぎ・じゃがいもなど根菜の種まき、植え付け、収穫に向いています。土寄せ、耕起、堆肥の鋤き込みなど、土に直接はたらきかける作業にも良い日です。',
+    avoid: '葉物の収穫にはあまり向きません。葉に行く水分が少なめなので、収穫してもしんなりしやすくなります。',
+    rice:  '稲作では、代かき・耕起・土づくりなど土に働きかける作業に向いています。苗の根張りを促したい時期の水管理にも良い日です。',
+    note:  '根の日に収穫した根菜は実が締まりやすく、保存性が高くなるとされます。長期保存したい大根や人参は、できればこの日を狙ってみてください。',
+  },
+  leaf: {
+    label: '葉の日',
+    what:  '月が「水」の元素を持つ領域を通過しています。この日は植物の水分吸収が活発になり、葉の成長に力が向きます。',
+    mechanism: '水の元素は「冷・湿」の性質を持ちます。植物が水を吸い上げる力が強まり、葉が瑞々しく広がりやすい日です。移植後の根付きも良くなるとされます。',
+    good:  'キャベツ・ほうれん草・レタスなど葉物野菜の種まき、移植、水やりに適しています。芝刈りや葉の剪定にも良い日。',
+    avoid: '保存用の収穫には不向きです。野菜に水分が多く含まれるため、収穫後に傷みやすくなります。',
+    rice:  '稲作では、田植え（苗の移植）に最も適した日です。水の力が強まる日なので、苗が水田になじみやすく、活着が良いとされます。入水・水管理にも適した日。',
+    note:  '食べる分だけの収穫がおすすめです。この日に収穫した葉物は瑞々しくて美味しいですが、長持ちしにくい傾向があります。逆に言えば、サラダ用の収穫にはぴったり。',
+  },
+  flower: {
+    label: '花の日',
+    what:  '月が「風」の元素を持つ領域を通過しています。この日は植物の上部、特に花や種子に力が集中します。',
+    mechanism: '風の元素は「熱・湿」の性質を持ちます。植物の中で光に向かう上昇する力が強まり、花芽の形成や開花が促されます。香りや色も豊かになるとされます。',
+    good:  'ブロッコリーやカリフラワーなど花蕾を食べる作物の手入れ、受粉作業、種取り、花の植え付けに向いています。',
+    avoid: '根菜の収穫には向きません。エネルギーが上に向かっているため、根の味が薄くなりやすいとされます。',
+    rice:  '稲作では、稲の出穂・開花の時期にこの日が重なると受粉が良くなるとされます。穂肥（ほごえ）のタイミングの参考にもなります。',
+    note:  '切り花はこの日に摘むと花持ちが良いとされます。また、ハーブ類の収穫にも適した日で、香りが強く出やすい傾向があります。',
+  },
+  fruit: {
+    label: '実の日',
+    what:  '月が「火」の元素を持つ領域を通過しています。この日は果実や種子に力が集中し、実りの力が最も強くなります。',
+    mechanism: '火の元素は「熱・乾」の性質を持ちます。植物体内で糖分や養分が果実に集まり、果実の充実が進むと考えられています。種子の発芽力も高まるとされます。',
+    good:  'トマト・ナス・大豆・きゅうり・かぼちゃなど実をつける作物の種まき、収穫に適しています。特に大豆の種まきにおすすめ。',
+    avoid: '移植にはあまり向きません。根に行く力が弱いため、移植後の活着が遅れることがあります。',
+    rice:  '稲作では、米は「穀物の実」なので、稲刈り・脱穀・籾摺りに最適な日です。乾燥しやすく保存性が高まる「火」の性質が、収穫後の米の品質に影響するとされます。種籾の選別や浸種の開始にも向いています。',
+    note:  '保存用の穀物や豆の収穫にはこの日が最適です。水分が少なく乾燥しやすいため、保存性が高くなります。大豆を干す作業もこの日を狙うと良いでしょう。',
+  },
+};
+
+// ===== 季節の野菜豆知識（月ごと・ランダム表示） =====
+const TRIVIA = {
+  1: [
+    '寒締めほうれん草は、氷点下の寒さにあたることで糖度が上がります。植物が凍結を防ぐために糖分を蓄えるためです。',
+    '冬のキャベツは寒さで甘みが増します。細胞が凍らないようにデンプンを糖に変えるので、霜に当たった後が美味しい。',
+    '雪の下で越冬した人参は「雪下人参」と呼ばれ、甘みが普通の2倍近くになることもあります。',
+    '1月は種のカタログを眺めながら春の計画を立てる最高の時期。焦らなくていい。種は待ってくれます。',
+  ],
+  2: [
+    'じゃがいもの種芋は、植え付けの2〜3週間前から明るい場所に出して芽を出させる「浴光催芽」をすると、発芽が揃います。',
+    '春の種まきに向けて、まだ雪があるうちにぼかし肥料を仕込んでおくと、雪解けと同時に土に馴染みます。',
+    '会津の在来大豆は、何世代もこの土地の気候に適応してきた種。市販の種とは遺伝的な耐寒性が違います。',
+  ],
+  3: [
+    '大豆の根粒菌は、空気中の窒素を植物が使える形に変えてくれます。大豆を育てた後の土は窒素が豊かになり、次の作物が元気に育ちます。',
+    'ほうれん草は酸性土壌が苦手。種まき前に苦土石灰を撒いておくと、発芽率が大きく変わります。',
+    '啓蟄を過ぎると土の中の虫が動き出します。これは土壌温度が5°Cを超え始めた合図。種まきの目安にもなります。',
+    'たまねぎの苗は、鉛筆くらいの太さが植え付けの適期。細すぎると冬を越せず、太すぎるととう立ちしやすくなります。',
+    '春分の頃は昼と夜の長さがほぼ同じ。日照時間に敏感な作物（ほうれん草など）の種まき計画に重要な分岐点です。',
+    '稲の種籾の塩水選は、比重1.13の塩水に浸けて沈んだものだけを使います。これで充実した種籾だけを選べます。浮いた籾は発芽しても弱い苗になりやすい。',
+  ],
+  4: [
+    '人参の種は発芽に光が必要な「好光性種子」。土をかけすぎると芽が出ません。薄く覆土して、しっかり鎮圧するのがコツ。',
+    'キャベツの仲間（アブラナ科）を同じ場所で連作すると根こぶ病のリスクが高まります。3〜4年の輪作が理想。',
+    '大豆のコンパニオンプランツとしてトウモロコシを一緒に植えると、トウモロコシが風よけになり、大豆が窒素を供給する相互関係が生まれます。',
+    '稲の育苗は「苗半作」と言われるほど重要。苗の良し悪しが収量の半分を決めるとされます。温度管理と水やりに手を抜かないことが秋の実りにつながります。',
+    '種籾の浸種は、積算温度100°C・日（水温×日数）が目安。10°Cの水なら10日、15°Cなら7日ほど浸けると芽が動き出します。',
+  ],
+  5: [
+    '大豆の種まきは地温が15°C以上になってから。早すぎると発芽不良や腐敗の原因になります。',
+    'たまねぎは「長日植物」で、日照時間が一定以上になると球が太り始めます。品種ごとに必要な日長が違うので、西会津に合った品種選びが大切。',
+    'トマトの原産地はアンデスの高地。乾燥と寒暖差に強いのはそのためです。水をやりすぎない方が味が濃くなります。',
+    '田植えの水温は15°C以上が目安。それ以下だと苗が活着せず、根腐れのリスクが高まります。西会津では水源が雪解け水なので、水路で温まるのを待つのが大切。',
+    '田んぼの代かきは、土を均一にするだけでなく、雑草の種を水に浮かせて流す効果もあります。丁寧な代かきが夏の除草の手間を減らします。',
+  ],
+  6: [
+    '大豆は播種後すぐに大量の水を吸います。種の重さの約2倍の水を吸ってから発芽が始まります。播種前後の水分管理が発芽の鍵。',
+    '梅雨時期の除草は、雨の合間の「花の日」か「実の日」が向いています。湿った「葉の日」に除草すると、取った草がまた根付きやすい。',
+    'キュウリの原産地はインド北部のヒマラヤ山麓。高温多湿を好むのはそのためで、梅雨時期に一気に成長します。',
+    '田んぼの「中干し」は、分げつが十分に出た後に水を落として土を乾かす作業。根に酸素を送り込み、稲を丈夫にします。やりすぎると根が傷むので、土にひび割れが入ったら再び水を入れるのが目安。',
+  ],
+  7: [
+    '秋まき人参は7月中旬〜8月上旬が種まき適期。暑さの中で発芽させるのが難しいので、遮光や水やりで地温を下げる工夫が必要。',
+    'キャベツの苗は暑さに弱い。真夏に育苗する時は、寒冷紗で日除けをして、朝夕に水をやるとうまくいきます。',
+    '大豆の花は自家受粉なので、虫がいなくても実がつきます。でも蜜蜂が来ると受粉率が上がり、実の数が増えることが知られています。',
+    '稲の穂肥（ほごえ）は出穂の約25日前が適期。早すぎると稲が倒れやすくなり、遅すぎると米の品質が落ちます。葉色の変化を見て判断します。',
+    '稲は「短日植物」で、夜の長さが一定以上になると穂を出す準備を始めます。品種ごとに感光性が異なり、西会津の日長に合った品種を選ぶことが大切です。',
+  ],
+  8: [
+    '秋まきキャベツは8月中旬〜9月上旬が種まき適期。西会津では早めに蒔いて、初霜前に十分大きくしておくのがポイント。',
+    '大豆は花が咲いてから実が充実するまでの水分管理が収量を決めます。この時期の干ばつは大幅な減収につながります。',
+    'ほうれん草は真夏の直射日光が苦手。25°C以上で発芽率が急激に下がります。寒冷紗の下で蒔くか、9月まで待つのが賢明。',
+    '稲の出穂・開花期の高温（35°C以上）は不稔の原因になります。水を深く張る「深水管理」で穂の温度を下げるのが対策です。',
+    '稲穂が垂れ始めたら「落水」のタイミングを考えます。早すぎると米が痩せ、遅すぎると刈り取りが難しくなる。穂が8割黄色くなった頃が目安。',
+  ],
+  9: [
+    'ほうれん草の秋まきは9月が最適期。涼しくなってきた西会津の気候にぴったりで、甘くて柔らかい葉が育ちます。',
+    '人参は「セリ科」の植物。同じセリ科のパセリやセロリとは相性が悪く、近くに植えると互いの成長を抑制し合います。',
+    '秋の大根は「秋の味覚」の代表格。西会津の寒暖差が大きい気候は、甘みの強い大根を育てるのに最適な環境です。',
+    '稲刈りの適期は、籾の水分量が25%前後になった時。手で穂を握って、3割ほど青い籾が残っている状態が目安です。完全に枯れてからでは遅い。',
+    '刈り取った稲を天日で干す「はさがけ」は、機械乾燥に比べてゆっくり水分が抜けるため、米の味が良くなるとされます。2〜3週間かけて15%まで乾燥させます。',
+  ],
+  10: [
+    '大豆の収穫適期は、葉が落ちてサヤが茶色く乾燥してきた頃。振ると中でカラカラと音がするのが目安です。',
+    'たまねぎは収穫後、風通しの良い日陰で2〜3週間乾燥させると、半年以上保存できます。雨に当てないことが大切。',
+    '落ち葉は最高の堆肥材料。集めて積んでおくと、来春には土に戻せます。ケヤキやナラの葉が分解が早くておすすめ。',
+  ],
+  11: [
+    '霜が降りた後のキャベツは甘みが増します。外葉が霜でやられても、中の葉は糖分が上がってシャキシャキと甘い。',
+    '冬越しする玉ねぎは、11月上旬までに定植を済ませましょう。根がしっかり張ってから冬を迎えると、春の成長が全然違います。',
+    '大根は霜に当たると甘くなる野菜の代表格。夜の寒さで凍らないように糖を蓄えるのは、植物の生存戦略です。',
+  ],
+  12: [
+    '雪の下に残した野菜は天然の冷蔵庫で保存されます。雪の温度は0°C前後で安定していて、凍結を防ぎながら鮮度を保ちます。',
+    '冬は土が休む季節ですが、土壌中の微生物は完全には眠りません。凍結と解凍を繰り返すことで土が砕かれ、春に柔らかい土になります。',
+    '来年の種の注文は12月中がおすすめ。人気品種は早く売り切れます。今年の畑の記録を振り返りながら選ぶと良い計画になります。',
+  ],
+};
+
+// ===== 二十四節気（黄経昇順 0→345） =====
+const SEKKI = [
+  { lon:0,  name:'春分', r:'しゅんぶん', desc:'昼と夜の長さがほぼ等しくなる日。春の中心。畑仕事の本格的な開始の目安。' },
+  { lon:15, name:'清明', r:'せいめい',   desc:'空気が澄み、草木が芽吹き始める頃。種まきの好機が増える時期。' },
+  { lon:30, name:'穀雨', r:'こくう',     desc:'穀物を潤す春の雨が降る頃。種まき後の発芽を助ける恵みの雨の時期。' },
+  { lon:45, name:'立夏', r:'りっか',     desc:'暦の上での夏の始まり。日差しが強まり、作物の生育が加速する。' },
+  { lon:60, name:'小満', r:'しょうまん', desc:'草木が茂り、麦の穂が実り始める頃。畑の手入れが忙しくなる時期。' },
+  { lon:75, name:'芒種', r:'ぼうしゅ',   desc:'稲の種を蒔く時期。田植えの最盛期。梅雨入りの目安。' },
+  { lon:90, name:'夏至', r:'げし',       desc:'一年で最も昼が長い日。植物の成長力が最大になる。' },
+  { lon:105,name:'小暑', r:'しょうしょ', desc:'本格的な暑さが始まる頃。除草と水管理が重要になる時期。' },
+  { lon:120,name:'大暑', r:'たいしょ',   desc:'一年で最も暑い頃。夏野菜の収穫最盛期。' },
+  { lon:135,name:'立秋', r:'りっしゅう', desc:'暦の上での秋の始まり。暑さの中に秋の気配が混じり始める。秋冬野菜の準備。' },
+  { lon:150,name:'処暑', r:'しょしょ',   desc:'暑さが落ち着き始める頃。秋冬野菜の種まき適期。' },
+  { lon:165,name:'白露', r:'はくろ',     desc:'朝露が白く光る頃。昼夜の寒暖差が大きくなり、野菜の味が深まる。' },
+  { lon:180,name:'秋分', r:'しゅうぶん', desc:'再び昼と夜が等しくなる。収穫の秋の中心。保存食づくりの時期。' },
+  { lon:195,name:'寒露', r:'かんろ',     desc:'露が冷たく感じる頃。晩秋の収穫。霜に備える準備を始める。' },
+  { lon:210,name:'霜降', r:'そうこう',   desc:'霜が降り始める頃。西会津では特に注意が必要な時期。霜除けの準備。' },
+  { lon:225,name:'立冬', r:'りっとう',   desc:'冬の始まり。畑の片付けと冬越し準備。残った作物の収穫。' },
+  { lon:240,name:'小雪', r:'しょうせつ', desc:'初雪がちらつく頃。雪囲いや冬支度。保存野菜の管理。' },
+  { lon:255,name:'大雪', r:'たいせつ',   desc:'本格的に雪が降る頃。西会津では積雪が始まる。畑は雪の下へ。' },
+  { lon:270,name:'冬至', r:'とうじ',     desc:'一年で最も夜が長い日。ここから日が伸び始める。春への折り返し点。' },
+  { lon:285,name:'小寒', r:'しょうかん', desc:'寒さが厳しくなる頃。雪の下で種や土が休んでいる。来春の計画を立てる時期。' },
+  { lon:300,name:'大寒', r:'だいかん',   desc:'一年で最も寒い頃。寒さが土壌を浄化し、病害虫を減らしてくれる。' },
+  { lon:315,name:'立春', r:'りっしゅん', desc:'暦の上での春の始まり。まだ雪深いが、日差しに春の兆し。種の準備を始める頃。' },
+  { lon:330,name:'雨水', r:'うすい',     desc:'雪が雨に変わり始める頃。雪解けが始まり、土が目覚め始める。' },
+  { lon:345,name:'啓蟄', r:'けいちつ',   desc:'冬眠していた虫が地上に出てくる頃。土が温まり、畑の準備が始まる時期。' },
+];
+
+// ===== 七十二候（黄経昇順 0→355） =====
+const KO72 = [
+  { lon:0,  name:'雀始巣',  r:'すずめはじめてすくう',             desc:'雀が巣を作り始める。春の営みの始まり。' },
+  { lon:5,  name:'桜始開',  r:'さくらはじめてひらく',             desc:'桜が咲き始める頃。畑にも春の色が広がる。' },
+  { lon:10, name:'雷乃発声',r:'かみなりすなわちこえをはっす',     desc:'春雷が鳴り始める。大気が動き出し、雨が畑を潤す。' },
+  { lon:15, name:'玄鳥至',  r:'つばめきたる',                     desc:'燕が南から渡ってくる。虫が増え、畑の生態系が動き出す。' },
+  { lon:20, name:'鴻雁北',  r:'こうがんかえる',                   desc:'雁が北へ帰っていく。空の季節が変わる。' },
+  { lon:25, name:'虹始見',  r:'にじはじめてあらわる',             desc:'春の雨上がりに虹が出始める。日差しと雨のバランスが変わる。' },
+  { lon:30, name:'葭始生',  r:'あしはじめてしょうず',             desc:'水辺の葦が芽を出す。水田の準備が始まる頃。' },
+  { lon:35, name:'霜止出苗',r:'しもやんでなえいずる',             desc:'霜が止み、苗が伸び始める。種まきの好機。' },
+  { lon:40, name:'牡丹華',  r:'ぼたんはなさく',                   desc:'牡丹が咲く頃。花の力が満ちる時期。' },
+  { lon:45, name:'蛙始鳴',  r:'かわずはじめてなく',               desc:'蛙が鳴き始める。水田に命が満ちる。' },
+  { lon:50, name:'蚯蚓出',  r:'みみずいずる',                     desc:'みみずが地上に現れる。土が十分に温まった証。' },
+  { lon:55, name:'竹笋生',  r:'たけのこしょうず',                 desc:'筍が生え始める。地下の力が地上に噴き出す頃。' },
+  { lon:60, name:'蚕起食桑',r:'かいこおきてくわをはむ',           desc:'蚕が桑の葉を食べ始める。生き物が旺盛に活動する時期。' },
+  { lon:65, name:'紅花栄',  r:'べにばなさかう',                   desc:'紅花が盛んに咲く頃。畑に色が溢れる。' },
+  { lon:70, name:'麦秋至',  r:'むぎのときいたる',                 desc:'麦が実る頃。「麦の秋」と呼ばれる収穫期。' },
+  { lon:75, name:'螳螂生',  r:'かまきりしょうず',                 desc:'かまきりが生まれる。畑の益虫が増える時期。' },
+  { lon:80, name:'腐草為蛍',r:'くされたるくさほたるとなる',       desc:'蛍が光り始める。湿った草むらに夏の夜が来る。' },
+  { lon:85, name:'梅子黄',  r:'うめのみきばむ',                   desc:'梅の実が黄色く熟す。梅雨の本番。' },
+  { lon:90, name:'乃東枯',  r:'なつかれくさかるる',               desc:'夏枯草が枯れる。夏至を迎え、陽の力が極まる。' },
+  { lon:95, name:'菖蒲華',  r:'あやめはなさく',                   desc:'あやめが咲く頃。水辺の風景が美しい。' },
+  { lon:100,name:'半夏生',  r:'はんげしょうず',                   desc:'半夏（カラスビシャク）が生える。田植えの目安。' },
+  { lon:105,name:'温風至',  r:'あつかぜいたる',                   desc:'熱い風が吹き始める。本格的な夏の到来。' },
+  { lon:110,name:'蓮始開',  r:'はすはじめてひらく',               desc:'蓮の花が開く。水の中から美しい花が立ち上がる。' },
+  { lon:115,name:'鷹乃学習',r:'たかすなわちわざをならう',         desc:'若鷹が飛ぶ練習を始める。生き物が力を増す時期。' },
+  { lon:120,name:'桐始結花',r:'きりはじめてはなをむすぶ',         desc:'桐の花が実を結ぶ。暑さの中で実りが進む。' },
+  { lon:125,name:'土潤溽暑',r:'つちうるおうてむしあつし',         desc:'土が湿り蒸し暑い。土壌微生物が最も活発な時期。' },
+  { lon:130,name:'大雨時行',r:'たいうときどきふる',               desc:'時々大雨が降る。夏の集中豪雨に注意。' },
+  { lon:135,name:'涼風至',  r:'すずかぜいたる',                   desc:'涼しい風が吹き始める。秋の気配の始まり。' },
+  { lon:140,name:'寒蝉鳴',  r:'ひぐらしなく',                     desc:'ひぐらしが鳴く。夏の終わりを告げる声。' },
+  { lon:145,name:'蒙霧升降',r:'ふかききりまとう',                 desc:'深い霧が立ち込める朝。寒暖差が大きくなっている証。' },
+  { lon:150,name:'綿柎開',  r:'わたのはなしべひらく',             desc:'綿の実が開く。秋の実りが始まる。' },
+  { lon:155,name:'天地始粛',r:'てんちはじめてさむし',             desc:'天地が粛然とし始める。涼しさが増す。' },
+  { lon:160,name:'禾乃登',  r:'こくものすなわちみのる',           desc:'稲穂が実る。穀物の収穫が近い。' },
+  { lon:165,name:'草露白',  r:'くさのつゆしろし',                 desc:'草に白い露がつく。夜の冷え込みが増す。' },
+  { lon:170,name:'鶺鴒鳴',  r:'せきれいなく',                     desc:'せきれいが鳴く。水辺の鳥が秋を知らせる。' },
+  { lon:175,name:'玄鳥去',  r:'つばめさる',                       desc:'燕が南へ帰る。春に来た燕が去り、季節が一巡する。' },
+  { lon:180,name:'雷乃収声',r:'かみなりすなわちこえをおさむ',     desc:'雷が鳴らなくなる。大気が落ち着き、秋が深まる。' },
+  { lon:185,name:'蟄虫坯戸',r:'むしかくれてとをふさぐ',           desc:'虫が巣穴の入口を塞ぐ。冬ごもりの準備が始まる。' },
+  { lon:190,name:'水始涸',  r:'みずはじめてかるる',               desc:'田の水を落とし、稲刈りの準備。水が引いていく。' },
+  { lon:195,name:'鴻雁来',  r:'こうがんきたる',                   desc:'雁が渡ってくる。北の冬が近づいている証。' },
+  { lon:200,name:'菊花開',  r:'きくのはなひらく',                 desc:'菊の花が咲く。秋の深まりを彩る。' },
+  { lon:205,name:'蟋蟀在戸',r:'きりぎりすとにあり',               desc:'虫の声が戸口まで聞こえる。秋の夜が深い。' },
+  { lon:210,name:'霜始降',  r:'しもはじめてふる',                 desc:'初霜が降りる。霜に弱い作物は急いで収穫を。' },
+  { lon:215,name:'霎時施',  r:'こさめときどきふる',               desc:'小雨が時々降る。しっとりとした晩秋。' },
+  { lon:220,name:'楓蔦黄',  r:'もみじつたきばむ',                 desc:'紅葉が色づく。山が燃えるように赤くなる。' },
+  { lon:225,name:'山茶始開',r:'つばきはじめてひらく',             desc:'椿が咲き始める。冬の中の花。' },
+  { lon:230,name:'地始凍',  r:'ちはじめてこおる',                 desc:'大地が凍り始める。畑の土が硬くなっていく。' },
+  { lon:235,name:'金盞香',  r:'きんせんかさく',                   desc:'水仙が咲く。冬の冷たい空気に甘い香り。' },
+  { lon:240,name:'虹蔵不見',r:'にじかくれてみえず',               desc:'虹が見えなくなる。冬の空は虹を隠す。' },
+  { lon:245,name:'朔風払葉',r:'きたかぜこのはをはらう',           desc:'北風が木の葉を払い落とす。冬の風が吹き始める。' },
+  { lon:250,name:'橘始黄',  r:'たちばなはじめてきばむ',           desc:'橘の実が黄色くなる。冬の中の小さな実り。' },
+  { lon:255,name:'閉塞成冬',r:'そらさむくふゆとなる',             desc:'空が塞がれ本格的な冬になる。雪雲が空を覆う。' },
+  { lon:260,name:'熊蟄穴',  r:'くまあなにこもる',                 desc:'熊が冬眠に入る。山も畑も静かになる。' },
+  { lon:265,name:'鱖魚群',  r:'さけのうおむらがる',               desc:'鮭が群れをなして川を遡る。命を次世代へ繋ぐ季節。' },
+  { lon:270,name:'乃東生',  r:'なつかれくさしょうず',             desc:'夏枯草が芽を出す。冬至の日、最も暗い中に新しい芽。' },
+  { lon:275,name:'麋角解',  r:'さわしかのつのおつる',             desc:'鹿の角が落ちる。古いものを落とし、新しい力を蓄える。' },
+  { lon:280,name:'雪下出麦',r:'ゆきわたりてむぎのびる',           desc:'雪の下で麦が伸びている。見えない場所で命が動いている。' },
+  { lon:285,name:'芹乃栄',  r:'せりすなわちさかう',               desc:'芹が盛んに茂る。冬でも生きる力がある。' },
+  { lon:290,name:'水泉動',  r:'しみずあたたかをふくむ',           desc:'地中の泉が動き始める。凍った大地の下で水が流れ出す。' },
+  { lon:295,name:'雉始雊',  r:'きじはじめてなく',                 desc:'雉が鳴き始める。春を待つ声が山に響く。' },
+  { lon:300,name:'款冬華',  r:'ふきのはなさく',                   desc:'蕗の薹が顔を出す。雪の中に最初の春。' },
+  { lon:305,name:'水沢腹堅',r:'さわみずこおりつめる',             desc:'沢の水が厚く凍る。寒さの底。' },
+  { lon:310,name:'鶏始乳',  r:'にわとりはじめてとやにつく',       desc:'鶏が卵を産み始める。日が長くなり始めたことを生き物が感じている。' },
+  { lon:315,name:'東風解凍',r:'はるかぜこおりをとく',             desc:'東風が氷を解かし始める。春が近づいている。' },
+  { lon:320,name:'黄鶯睍睆',r:'うぐいすなく',                     desc:'鶯が鳴き始める。春を告げる最初の声。' },
+  { lon:325,name:'魚上氷',  r:'うおこおりをいずる',               desc:'魚が氷の下から出てくる。水の中にも春が来る。' },
+  { lon:330,name:'土脉潤起',r:'つちのしょううるおいおこる',       desc:'土中の水脈が潤い始める。雪解け水が土に染み込む。' },
+  { lon:335,name:'霞始靆',  r:'かすみはじめてたなびく',           desc:'霞がたなびき始める。空気が柔らかくなる。' },
+  { lon:340,name:'草木萌動',r:'そうもくめばえいずる',             desc:'草木が芽吹き始める。土の中から力が湧き上がる。' },
+  { lon:345,name:'蟄虫啓戸',r:'すごもりむしとをひらく',           desc:'冬眠していた虫が巣穴の戸を開く。土が動き出す。' },
+  { lon:350,name:'桃始笑',  r:'ももはじめてさく',                 desc:'桃の花が咲き始める。「笑」は花が開くこと。' },
+  { lon:355,name:'菜虫化蝶',r:'なむしちょうとなる',               desc:'青虫が蝶に変わる。春の虫たちが羽ばたき始める。' },
+];
+
+// ===== 計算関数 =====
+function moonZodiac(d) {
+  const e = Astronomy.EclipticGeoMoon(d);
+  const s = ZODIAC[Math.floor(e.lon / 30)];
+  return { lon: e.lon, sign: s };
+}
+function sunLon(d) { return Astronomy.SunPosition(d).elon; }
+function find(arr, lon) {
+  const l = ((lon % 360) + 360) % 360;
+  for (let i = arr.length - 1; i >= 0; i--) { if (l >= arr[i].lon) return arr[i]; }
+  return arr[arr.length - 1];
+}
+function moonPhase(d) {
+  const a = Astronomy.MoonPhase(d);
+  const age = a / (360 / 29.530588853);
+  const names = [
+    [22.5,'新月','🌑'],[67.5,'三日月','🌒'],[112.5,'上弦','🌓'],[157.5,'十三夜','🌔'],
+    [202.5,'満月','🌕'],[247.5,'十八夜','🌖'],[292.5,'下弦','🌗'],[337.5,'二十六夜','🌘'],[360,'新月','🌑']
+  ];
+  const p = names.find(n => a < n[0]) || names[0];
+  return { angle: a, age, name: p[1], emoji: p[2] };
+}
+function sunTimes(d) {
+  const obs = new Astronomy.Observer(CFG.lat, CFG.lon, CFG.alt);
+  const y = d.getFullYear(), m = d.getMonth(), dd = d.getDate();
+  const s = new Date(Date.UTC(y, m, dd - 1, 24 - CFG.tz, 0, 0));
+  const rise = Astronomy.SearchRiseSet('Sun', obs, +1, s, 1);
+  const set  = Astronomy.SearchRiseSet('Sun', obs, -1, s, 1);
+  if (!rise || !set) return null;
+  const rJ = new Date(rise.date.getTime() + CFG.tz * 3600000);
+  const sJ = new Date(set.date.getTime()  + CFG.tz * 3600000);
+  return { rise: rJ, set: sJ, min: Math.round((set.date - rise.date) / 60000) };
+}
+function fmt(d) { return d.getUTCHours().toString().padStart(2,'0') + ':' + d.getUTCMinutes().toString().padStart(2,'0'); }
+
+// ===== Phase 2: 地形計算 =====
+const LAPSE_RATE = 0.65; // °C per 100m
+const REF_ALT = 165; // 西会津アメダス観測点の標高（実測値）
+
+async function fetchElevation(lat, lon) {
+  const url = `https://cyberjapandata2.gsi.go.jp/general/dem/scripts/getelevation.php?lon=${lon}&lat=${lat}&outtype=JSON`;
+  const res = await fetch(url);
+  const data = await res.json();
+  return (data.elevation !== '-----') ? parseFloat(data.elevation) : null;
+}
+
+async function fetchTerrainProfile(lat, lon) {
+  // 中心点 + 周囲8点（約50m間隔）の標高を取得
+  const delta = 0.0005; // 約50m（緯度方向）
+  const points = [
+    { key: 'nw', dlat: delta,  dlon: -delta },
+    { key: 'n',  dlat: delta,  dlon: 0 },
+    { key: 'ne', dlat: delta,  dlon: delta },
+    { key: 'w',  dlat: 0,      dlon: -delta },
+    { key: 'c',  dlat: 0,      dlon: 0 },
+    { key: 'e',  dlat: 0,      dlon: delta },
+    { key: 'sw', dlat: -delta, dlon: -delta },
+    { key: 's',  dlat: -delta, dlon: 0 },
+    { key: 'se', dlat: -delta, dlon: delta },
+  ];
+
+  const results = {};
+  // 並列リクエスト
+  const promises = points.map(async (p) => {
+    const elev = await fetchElevation(lat + p.dlat, lon + p.dlon);
+    results[p.key] = elev;
+  });
+  await Promise.all(promises);
+  return results;
+}
+
+function calcSlope(grid) {
+  // null値があれば計算不可
+  for (const k of ['nw','n','ne','w','e','sw','s','se']) {
+    if (grid[k] === null) return null;
+  }
+  const cellSize = 50;
+  const dzdx = ((grid.ne + 2*grid.e + grid.se) - (grid.nw + 2*grid.w + grid.sw)) / (8*cellSize);
+  const dzdy = ((grid.nw + 2*grid.n + grid.ne) - (grid.sw + 2*grid.s + grid.se)) / (8*cellSize);
+  const slopePct = Math.sqrt(dzdx*dzdx + dzdy*dzdy) * 100;
+  let aspect = Math.atan2(-dzdx, -dzdy) * (180/Math.PI);
+  if (aspect < 0) aspect += 360;
+
+  const dirs = [
+    [337.5,360,'北'],[0,22.5,'北'],[22.5,67.5,'北東'],[67.5,112.5,'東'],
+    [112.5,157.5,'南東'],[157.5,202.5,'南'],[202.5,247.5,'南西'],
+    [247.5,292.5,'西'],[292.5,337.5,'北西']
+  ];
+  let dir = '不明';
+  for (const [lo,hi,n] of dirs) { if (aspect >= lo && aspect < hi) { dir = n; break; } }
+
+  return { slopePct: Math.round(slopePct*10)/10, aspectDeg: Math.round(aspect), direction: dir, isFlat: slopePct < 2 };
+}
+
+function calcFrostRisk(elevation, slope) {
+  let score = 50;
+  score += ((elevation - REF_ALT) / 100) * 5;
+  const af = { '南':-15,'南東':-12,'南西':-10,'東':-5,'西':0,'北東':5,'北西':8,'北':12,'不明':0 };
+  if (slope) score += (af[slope.direction] || 0);
+  if (slope && slope.isFlat) score += 8;
+  score = Math.max(0, Math.min(100, Math.round(score)));
+  let level, desc, color;
+  if (score >= 70) { level='高'; desc='霜が降りやすい環境です。霜に弱い作物は不織布やトンネルなどの対策が必要です。'; color='var(--fire)'; }
+  else if (score >= 50) { level='中'; desc='霜が降りる可能性があります。春先と晩秋は天気予報と合わせて注意してください。'; color='var(--warm)'; }
+  else if (score >= 30) { level='やや低'; desc='霜のリスクは比較的低いですが、放射冷却が強い晴れた夜は注意が必要です。'; color='var(--accent)'; }
+  else { level='低'; desc='霜のリスクは低い環境です。南向き斜面の日当たりの恩恵があります。'; color='var(--accent)'; }
+  return { score, level, desc, color };
+}
+
+function tempCorrection(elev) {
+  const diff = elev - REF_ALT;
+  const corr = -(diff/100) * LAPSE_RATE;
+  return { diff, corr: Math.round(corr*100)/100 };
+}
+
+// ===== Phase 3: 気象データ =====
+let _weatherData = null;
+let _weatherError = null;
+
+async function fetchWeather(lat, lon) {
+  const url = `https://api.open-meteo.com/v1/forecast`
+    + `?latitude=${lat}&longitude=${lon}`
+    + `&hourly=temperature_2m,relative_humidity_2m,precipitation,snowfall,snow_depth,surface_pressure,wind_speed_10m,soil_temperature_0cm,shortwave_radiation`
+    + `&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,snowfall_sum,sunrise,sunset,wind_speed_10m_max`
+    + `&timezone=Asia%2FTokyo&forecast_days=7`;
+  const res = await fetch(url);
+  return await res.json();
+}
+
+function calcPressureChange(pressures, windowHours) {
+  if (!pressures || pressures.length < windowHours + 1) return null;
+  // 現在時刻に最も近いインデックスを推定
+  const now = new Date();
+  const hourNow = now.getHours();
+  const idx = Math.min(hourNow, pressures.length - 1);
+  const idxPrev = Math.max(0, idx - windowHours);
+  if (pressures[idx] == null || pressures[idxPrev] == null) return null;
+  const change = Math.round((pressures[idx] - pressures[idxPrev]) * 10) / 10;
+  let trend, desc;
+  if (change < -3) { trend='急降下'; desc='天気が急速に崩れる可能性。強風や大雨に注意。'; }
+  else if (change < -1) { trend='下降中'; desc='天気が崩れる兆し。雨の準備を。'; }
+  else if (change < 1) { trend='安定'; desc='大きな天気の変化なし。'; }
+  else if (change < 3) { trend='上昇中'; desc='天気は回復傾向。'; }
+  else { trend='急上昇'; desc='天気が急速に回復。風が強まることも。'; }
+  return { change, trend, desc, current: pressures[idx] };
+}
+
+function todayWeatherSummary(data) {
+  if (!data || !data.daily) return null;
+  const d = data.daily;
+  return {
+    maxT: d.temperature_2m_max?.[0],
+    minT: d.temperature_2m_min?.[0],
+    precip: d.precipitation_sum?.[0],
+    snow: d.snowfall_sum?.[0],
+    sunrise: d.sunrise?.[0],
+    sunset: d.sunset?.[0],
+    windMax: d.wind_speed_10m_max?.[0],
+  };
+}
+
+function todayHourlySummary(data) {
+  if (!data || !data.hourly) return null;
+  const h = data.hourly;
+  // 今日の0-23時分を抽出
+  const slice = (arr) => arr ? arr.slice(0, 24) : [];
+  const temps = slice(h.temperature_2m);
+  const hum = slice(h.relative_humidity_2m);
+  const soilT = slice(h.soil_temperature_0cm);
+  const snowD = slice(h.snow_depth);
+  const press = slice(h.surface_pressure);
+  const avg = (arr) => arr.length > 0 ? arr.reduce((a,b) => a + (b||0), 0) / arr.filter(v => v != null).length : null;
+  return {
+    avgHumidity: Math.round(avg(hum)),
+    soilTemp: Math.round(avg(soilT) * 10) / 10,
+    snowDepth: Math.max(...snowD.map(v => v || 0)),
+    pressures: press,
+    pressure: calcPressureChange(press, 3),
+  };
+}
+
+// ===== Phase 4: 宇宙天気 =====
+let _spaceData = null;
+
+async function fetchSpaceWeather() {
+  const endpoints = {
+    kIndex:    'https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json',
+    solarWind: 'https://services.swpc.noaa.gov/products/solar-wind/plasma-1-day.json',
+    xray:      'https://services.swpc.noaa.gov/json/goes/primary/xrays-7-day.json',
+  };
+  const results = {};
+  const promises = Object.entries(endpoints).map(async ([key, url]) => {
+    try {
+      const res = await fetch(url);
+      results[key] = await res.json();
+    } catch(e) { results[key] = null; }
+  });
+  await Promise.all(promises);
+  return results;
+}
+
+function parseSpaceData(raw) {
+  const out = { kp: null, solarWind: null, xrayFlux: null };
+  // K指数: 配列の最後のエントリ [timestamp, kp, kp_str, ...]
+  if (raw.kIndex && Array.isArray(raw.kIndex) && raw.kIndex.length > 1) {
+    const last = raw.kIndex[raw.kIndex.length - 1];
+    out.kp = parseFloat(last[1]);
+    if (isNaN(out.kp)) out.kp = null;
+  }
+  // 太陽風: plasma配列の最後 [timestamp, density, speed, temperature]
+  if (raw.solarWind && Array.isArray(raw.solarWind) && raw.solarWind.length > 1) {
+    const last = raw.solarWind[raw.solarWind.length - 1];
+    const speed = parseFloat(last[2]);
+    out.solarWind = isNaN(speed) ? null : Math.round(speed);
+  }
+  // X線: 最新のflux
+  if (raw.xray && Array.isArray(raw.xray) && raw.xray.length > 0) {
+    const last = raw.xray[raw.xray.length - 1];
+    out.xrayFlux = last.flux || last.current_flux || null;
+  }
+  return out;
+}
+
+function interpretKIndex(kp) {
+  if (kp == null) return { level: '—', desc: 'データを取得できませんでした', farmEffect: '', color: 'var(--text-dim)' };
+  if (kp <= 2) return { level: '静穏', desc: '地磁気は穏やか。通常の状態。', farmEffect: '地磁気が安定している日は、植物の根からの養分吸収が正常に行われるとされます。通常の農作業に適した日。', color: 'var(--accent)' };
+  if (kp <= 4) return { level: 'やや活発', desc: '地磁気がやや乱れている。', farmEffect: '土壌中の微生物活動に微細な影響がある可能性。種まきや移植は問題ありません。', color: 'var(--warm)' };
+  if (kp <= 6) return { level: '活発', desc: '中規模の地磁気嵐が発生中。', farmEffect: '一部の研究では、地磁気嵐時に植物の発芽率に変動が見られるとの報告があります。繊細な作業は可能なら翌日に。', color: 'var(--fire)' };
+  return { level: '嵐', desc: '大規模な地磁気嵐。', farmEffect: '強い地磁気嵐は植物の電気的プロセスに影響するという仮説があります。科学的に確立された知見ではありませんが、記録として残します。', color: 'var(--fire)' };
+}
+
+function interpretSolarWind(speed) {
+  if (speed == null) return { level: '—', desc: 'データを取得できませんでした' };
+  if (speed < 350) return { level: '穏やか', desc: `${speed} km/s — 穏やかな状態。` };
+  if (speed < 500) return { level: '通常', desc: `${speed} km/s — 通常範囲。` };
+  if (speed < 700) return { level: '強い', desc: `${speed} km/s — 太陽風が強まっている。` };
+  return { level: '非常に強い', desc: `${speed} km/s — 非常に強い太陽風。大規模な地磁気嵐の可能性。` };
+}
+
+// ===== 描画 =====
+function render() {
+  const now = new Date();
+  const mz = moonZodiac(now);
+  const sl = sunLon(now);
+  const sk = find(SEKKI, sl);
+  const ko = find(KO72, sl);
+  const mp = moonPhase(now);
+  const bd = BD_INFO[mz.sign.bdEn];
+
+  const wd = ['日','月','火','水','木','金','土'][now.getDay()];
+  document.getElementById('dateLine').textContent =
+    `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日（${wd}）　${CFG.name}`;
+
+  let h = '';
+
+  // ===== BD暦 =====
+  h += `<div class="card">
+    <h2>今日の畑しごと — BD暦（バイオダイナミック農法暦）</h2>
+    <div class="highlight">
+      <span class="bd-tag bd-${mz.sign.bdEn}">${bd.label}</span>
+    </div>
+    <div class="explain">
+      <p>${bd.what}</p>
+      <p>${bd.mechanism}</p>
+      <p style="margin-top:10px"><span style="color:var(--accent)">向いている作業：</span>${bd.good}</p>
+      <p><span style="color:var(--fire)">避けた方がよい作業：</span>${bd.avoid}</p>
+      <p style="margin-top:10px"><span style="color:var(--accent2)">稲作：</span>${bd.rice}</p>
+      <p style="color:var(--text-dim);font-size:0.88em;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">${bd.note}</p>
+    </div>
+  </div>`;
+
+  // ===== 月 =====
+  h += `<div class="card">
+    <h2>月のようす</h2>
+    <div class="highlight">
+      <span class="moon-emoji">${mp.emoji}</span> ${mp.name}　月齢 ${mp.age.toFixed(1)}
+    </div>
+    <div class="explain">
+      <p>BD暦では、月が空のどの領域を通過しているかで、地上の植物に働く力が変わると考えます。約2〜3日ごとに領域が切り替わり、根・葉・花・実のリズムが巡ります。</p>
+    </div>
+  </div>`;
+
+  // ===== 二十四節気・七十二候 =====
+  h += `<div class="card">
+    <h2>季節のこよみ</h2>
+    <div class="highlight" style="font-size:1.1em">
+      ${sk.name}　<span style="color:var(--text-dim);font-size:0.8em">（${sk.r}）</span>
+    </div>
+    <div class="explain">
+      <p>${sk.desc}</p>
+      <p style="margin-top:14px;padding-top:10px;border-top:1px solid var(--border)">
+        <span style="color:var(--accent);font-size:0.9em">七十二候</span>
+        ${ko.name}　<span style="color:var(--text-dim);font-size:0.85em">（${ko.r}）</span>
+      </p>
+      <p>${ko.desc}</p>
+      <p style="color:var(--text-dim);font-size:0.8em;margin-top:8px">二十四節気は太陽の動きで一年を24に分けた暦。七十二候はそれをさらに約5日ずつに分け、自然の変化を72の言葉で表したもの。</p>
+    </div>
+  </div>`;
+
+  // ===== 今日の天気（太陽・霜リスク統合） =====
+  h += `<div class="card" id="weatherCard">
+    <h2>今日の天気 — ${CFG.name}</h2>
+    <div id="weatherContent" class="terrain-loading">気象データを取得しています...</div>
+  </div>`;
+
+  // ===== 週間BD暦 =====
+  h += `<div class="card">
+    <h2>今週のBD暦</h2>
+    <div class="explain"><p style="font-size:0.85em;color:var(--text-dim);margin-bottom:8px">月が約2〜3日ごとに異なる領域を通過します。作業の計画にお使いください。</p></div>
+    <table class="week-table"><tr><th>日付</th><th>BD暦</th><th></th></tr>`;
+  for (let i = -1; i <= 7; i++) {
+    const d = new Date(now); d.setDate(d.getDate() + i);
+    const mo = new Date(d); mo.setHours(6,0,0,0);
+    const ev = new Date(d); ev.setHours(18,0,0,0);
+    const mzM = moonZodiac(mo), mzE = moonZodiac(ev);
+    const sw = mzM.sign.bdEn !== mzE.sign.bdEn;
+    const cls = i === 0 ? ' class="today"' : '';
+    const mark = i === 0 ? ' ◀ 今日' : '';
+    const bdL = sw ? `${mzM.sign.bd}→${mzE.sign.bd}` : mzM.sign.bd;
+    const note = sw ? '<span class="note">切替日</span>' : '';
+    const dw = ['日','月','火','水','木','金','土'][d.getDay()];
+    h += `<tr${cls}><td>${d.getMonth()+1}/${d.getDate()}（${dw}）${mark}</td><td>${bdL}の日</td><td>${note}</td></tr>`;
+  }
+  h += '</table></div>';
+
+  // ===== 畑の地形 =====
+  h += `<div class="card">
+    <h2>畑の地形</h2>
+    <div id="locationList"></div>
+    <div id="map"></div>
+    <div class="map-instructions">地図上をクリックして場所を選択 → 名前をつけて保存できます</div>
+    <div id="locationSaveUI" style="display:none;margin:10px 0;text-align:center">
+      <input id="locNameInput" type="text" placeholder="地点名（例：メイン畑、田んぼ）"
+        style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px 12px;font-size:0.9em;width:60%;margin-right:6px" />
+      <button id="locSaveBtn" onclick="saveCurrentLocation()"
+        style="background:var(--accent);color:var(--bg);border:none;border-radius:6px;padding:8px 16px;font-size:0.9em;cursor:pointer;font-weight:600">保存</button>
+    </div>
+    <div id="terrainInfo" class="terrain-info"></div>
+  </div>`;
+
+  // ===== 季節の野菜豆知識 =====
+  const month = now.getMonth() + 1;
+  const triviaList = TRIVIA[month] || TRIVIA[3];
+  // 日付ベースでランダム選択（同じ日なら同じ豆知識）
+  const triviaIdx = (now.getFullYear() * 366 + now.getMonth() * 31 + now.getDate()) % triviaList.length;
+  const trivia = triviaList[triviaIdx];
+  h += `<div class="card">
+    <h2>今日の畑の豆知識</h2>
+    <div class="explain">
+      <p>${trivia}</p>
+    </div>
+  </div>`;
+
+  // ===== 観測ログ =====
+  h += `<div class="card">
+    <h2>観測記録</h2>
+    <div class="explain">
+      <p style="font-size:0.85em;color:var(--text-dim)">このページを開くたびに、今日のデータが自動で記録されます。</p>
+      <div id="logStatus" style="font-size:0.85em;margin:8px 0"></div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <button onclick="exportRecords()" style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:6px 14px;font-size:0.82em;cursor:pointer">エクスポート（JSON）</button>
+        <label style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:6px 14px;font-size:0.82em;cursor:pointer">
+          インポート
+          <input type="file" accept=".json" onchange="importRecords(event)" style="display:none" />
+        </label>
+      </div>
+      <p style="font-size:0.75em;color:rgba(139,148,158,0.5);margin-top:8px">データはブラウザのlocalStorageに保存されます。ブラウザのデータ削除で消えるため、定期的なエクスポートをおすすめします。</p>
+    </div>
+  </div>`;
+
+  document.getElementById('app').innerHTML = h;
+}
+
+if (typeof Astronomy !== 'undefined') {
+  render();
+  updateLogStatus();
+
+  // ===== Leaflet地図の初期化 =====
+  if (typeof L !== 'undefined') {
+    // 保存済み地点があればそこを初期表示
+    const initLoc = savedLocations.length > 0 ? savedLocations[0] : { lat: CFG.lat, lon: CFG.lon };
+    if (savedLocations.length > 0) {
+      activeLocationIdx = 0;
+      CFG.lat = initLoc.lat;
+      CFG.lon = initLoc.lon;
+    }
+
+    _leafletMap = L.map('map').setView([initLoc.lat, initLoc.lon], 14);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 18,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(_leafletMap);
+
+    _leafletMarker = L.marker([initLoc.lat, initLoc.lon]).addTo(_leafletMap)
+      .bindPopup(savedLocations.length > 0 ? initLoc.name : `${CFG.name}（初期位置）`).openPopup();
+
+    renderLocationList();
+
+    // 初期位置の地形情報を取得
+    analyzeLocation(initLoc.lat, initLoc.lon);
+
+    // 天気データ取得
+    loadWeather(initLoc.lat, initLoc.lon);
+
+    // 宇宙天気データ取得
+    loadSpaceWeather();
+
+    // クリックで地点変更
+    _leafletMap.on('click', async function(e) {
+      const { lat, lng } = e.latlng;
+      if (_leafletMarker) _leafletMap.removeLayer(_leafletMarker);
+      _leafletMarker = L.marker([lat, lng]).addTo(_leafletMap)
+        .bindPopup(`${lat.toFixed(5)}, ${lng.toFixed(5)}`).openPopup();
+      activeLocationIdx = -1;
+      CFG.lat = lat;
+      CFG.lon = lng;
+      renderLocationList();
+      await analyzeLocation(lat, lng);
+      loadWeather(lat, lng);
+    });
+  }
+} else {
+  document.getElementById('app').innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-dim)">astronomy-engine の読み込みに失敗しました。インターネット接続を確認してください。</div>';
+}
+
+function renderLocationList() {
+  const el = document.getElementById('locationList');
+  if (!el || savedLocations.length === 0) { if (el) el.innerHTML = ''; return; }
+  let html = '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">';
+  savedLocations.forEach((loc, i) => {
+    const active = i === activeLocationIdx;
+    const style = active
+      ? 'background:var(--accent);color:var(--bg);font-weight:600'
+      : 'background:var(--bg);color:var(--text);border:1px solid var(--border)';
+    html += `<button onclick="selectLocation(${i})" style="${style};border-radius:20px;padding:5px 14px;font-size:0.85em;cursor:pointer">${loc.name}</button>`;
+  });
+  html += '</div>';
+  if (el) el.innerHTML = html;
+}
+
+function selectLocation(idx) {
+  const loc = savedLocations[idx];
+  if (!loc) return;
+  activeLocationIdx = idx;
+  CFG.lat = loc.lat;
+  CFG.lon = loc.lon;
+  if (_leafletMap) {
+    _leafletMap.setView([loc.lat, loc.lon], 15);
+    if (_leafletMarker) _leafletMap.removeLayer(_leafletMarker);
+    _leafletMarker = L.marker([loc.lat, loc.lon]).addTo(_leafletMap)
+      .bindPopup(loc.name).openPopup();
+  }
+  analyzeLocation(loc.lat, loc.lon);
+  loadWeather(loc.lat, loc.lon);
+  renderLocationList();
+}
+
+function saveCurrentLocation() {
+  const nameInput = document.getElementById('locNameInput');
+  const name = nameInput ? nameInput.value.trim() : '';
+  if (!name) { alert('地点名を入力してください'); return; }
+  if (!_currentAnalysis) { alert('先に地図上で場所を選択してください'); return; }
+  addLocation(name, _currentAnalysis.lat, _currentAnalysis.lon, {
+    elev: _currentAnalysis.elev,
+    slope: _currentAnalysis.slope,
+    frost: _currentAnalysis.frost,
+  });
+  if (nameInput) nameInput.value = '';
+  renderLocationList();
+}
+
+async function analyzeLocation(lat, lon) {
+  const infoEl = document.getElementById('terrainInfo');
+  if (!infoEl) return;
+
+  infoEl.innerHTML = '<div class="terrain-loading">地形情報を取得しています...</div>';
+
+  try {
+    const grid = await fetchTerrainProfile(lat, lon);
+    const elev = grid.c;
+
+    if (elev === null) {
+      infoEl.innerHTML = '<div class="terrain-loading">この地点の標高データがありません（海上や国外の可能性）</div>';
+      return;
+    }
+
+    const slope = calcSlope(grid);
+    const tc = tempCorrection(elev);
+    const frost = calcFrostRisk(elev, slope);
+
+    let html = '';
+    html += `<div class="row"><span class="label">標高</span><span class="val">${elev.toFixed(0)}m</span></div>`;
+
+    if (tc.diff !== 0) {
+      const tcDesc = tc.corr > 0
+        ? `平地より約${tc.corr.toFixed(1)}°C暖かい`
+        : `平地より約${Math.abs(tc.corr).toFixed(1)}°C涼しい`;
+      html += `<div class="row"><span class="label">気温の目安</span><span class="val">${tcDesc}<span style="color:var(--text-dim);font-size:0.8em">（推定）</span></span></div>`;
+    }
+
+    if (slope) {
+      const slopeDesc = slope.isFlat
+        ? '平坦地'
+        : `${slope.direction}向き斜面（勾配 ${slope.slopePct}%）`;
+      html += `<div class="row"><span class="label">斜面</span><span class="val">${slopeDesc}</span></div>`;
+    } else {
+      html += `<div class="row"><span class="label">斜面</span><span class="val">計算不可<span style="color:var(--text-dim);font-size:0.8em">（周辺データ不足）</span></span></div>`;
+    }
+
+    html += `<p style="font-size:0.75em;color:rgba(139,148,158,0.5);margin-top:6px">標高データ: 国土地理院</p>`;
+
+    infoEl.innerHTML = html;
+
+    // 分析結果を保持（保存ボタン用）
+    _currentAnalysis = { lat, lon, elev, slope, frost: frost.score };
+
+    // 保存UIを表示
+    const saveUI = document.getElementById('locationSaveUI');
+    if (saveUI) saveUI.style.display = 'block';
+
+  } catch(err) {
+    infoEl.innerHTML = `<div class="terrain-loading">地形情報の取得に失敗しました。<br><span style="font-size:0.85em">${err.message}</span><br><span style="font-size:0.8em;color:var(--text-dim)">国土地理院APIへの接続を確認してください。CORSブロックの可能性があります。</span></div>`;
+  }
+}
+
+// ===== 天気データ取得・表示 =====
+async function loadWeather(lat, lon) {
+  const el = document.getElementById('weatherContent');
+  if (!el) return;
+  el.innerHTML = '<div class="terrain-loading">気象データを取得しています...</div>';
+
+  try {
+    const data = await fetchWeather(lat, lon);
+    _weatherData = data;
+    const daily = todayWeatherSummary(data);
+    const hourly = todayHourlySummary(data);
+
+    if (!daily) { el.innerHTML = '<div class="terrain-loading">気象データの解析に失敗しました</div>'; return; }
+
+    // 太陽データ（astronomy-engine）を天気に統合
+    const stNow = sunTimes(new Date());
+    let html = '';
+    if (stNow) {
+      const hh = Math.floor(stNow.min / 60), mmm = stNow.min % 60;
+      html += `<div class="row"><span class="label">日出 / 日没</span><span class="val">${fmt(stNow.rise)} / ${fmt(stNow.set)}</span></div>`;
+      html += `<div class="row"><span class="label">日照時間</span><span class="val">${hh}時間${mmm}分</span></div>`;
+    }
+    html += `<div class="row"><span class="label">最高気温 / 最低気温</span><span class="val">${daily.maxT != null ? daily.maxT + '°C' : '—'} / ${daily.minT != null ? daily.minT + '°C' : '—'}</span></div>`;
+    html += `<div class="row"><span class="label">降水量</span><span class="val">${daily.precip != null ? daily.precip + 'mm' : '—'}</span></div>`;
+
+    if (daily.snow > 0) {
+      html += `<div class="row"><span class="label">降雪量</span><span class="val">${daily.snow}cm</span></div>`;
+    }
+
+    if (hourly && hourly.snowDepth > 0) {
+      html += `<div class="row"><span class="label">積雪深</span><span class="val">${hourly.snowDepth}cm</span></div>`;
+    }
+
+    html += `<div class="row"><span class="label">最大風速</span><span class="val">${daily.windMax != null ? daily.windMax + 'm/s' : '—'}</span></div>`;
+
+    if (hourly) {
+      html += `<div class="row"><span class="label">湿度（平均）</span><span class="val">${hourly.avgHumidity}%</span></div>`;
+
+      if (hourly.soilTemp != null) {
+        html += `<div class="row"><span class="label">地温（表面）</span><span class="val">${hourly.soilTemp}°C</span></div>`;
+      }
+
+      if (hourly.pressure) {
+        html += `<div class="row"><span class="label">気圧</span><span class="val">${hourly.pressure.current} hPa</span></div>`;
+        html += `<div class="row"><span class="label">気圧変化（3時間）</span><span class="val">${hourly.pressure.change > 0 ? '+' : ''}${hourly.pressure.change} hPa — ${hourly.pressure.trend}</span></div>`;
+        html += `<p style="font-size:0.82em;color:var(--text-dim);margin-top:6px">${hourly.pressure.desc}</p>`;
+      }
+    }
+
+    // 霜リスク（気象統合版）
+    if (daily.minT != null && hourly) {
+      const windMin = hourly.pressures ? Math.min(...(data.hourly.wind_speed_10m || []).slice(0,6).filter(v => v != null)) : 3;
+      const humNight = hourly.avgHumidity;
+      const terrainScore = _currentAnalysis ? _currentAnalysis.frost : 50;
+
+      const frostScore = calcEnhancedFrostRisk(daily.minT, humNight, windMin, terrainScore);
+      html += `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">`;
+      html += `<div class="row"><span class="label">霜リスク（今夜）</span><span class="val" style="color:${frostScore.score >= 70 ? 'var(--fire)' : frostScore.score >= 50 ? 'var(--warm)' : 'var(--accent)'}">${frostScore.level}（${frostScore.score}点）</span></div>`;
+      html += `<div class="frost-bar"><div class="frost-bar-fill" style="width:${frostScore.score}%;background:${frostScore.score >= 70 ? 'var(--fire)' : frostScore.score >= 50 ? 'var(--warm)' : 'var(--accent)'}"></div></div>`;
+      html += `<p style="font-size:0.82em;color:var(--text-dim);margin-top:6px">${frostScore.desc}</p>`;
+      html += `</div>`;
+    }
+
+    html += `<p style="font-size:0.72em;color:rgba(139,148,158,0.5);margin-top:8px">データ: Open-Meteo API（気象モデルによる予報値）</p>`;
+
+    el.innerHTML = html;
+
+    // 天気データ取得後に今日の記録を保存
+    recordToday();
+
+  } catch(err) {
+    el.innerHTML = `<div class="terrain-loading">気象データの取得に失敗しました。<br><span style="font-size:0.85em">${err.message}</span></div>`;
+    // 天気が取れなくても天文データだけ記録
+    recordToday();
+  }
+}
+
+// ===== 宇宙天気データ取得（バックグラウンド記録のみ・UIに表示しない） =====
+async function loadSpaceWeather() {
+  try {
+    const raw = await fetchSpaceWeather();
+    const data = parseSpaceData(raw);
+    _spaceData = data;
+    // localStorageに記録（将来の因果解析用）
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const record = { date: today, kp: data.kp, solarWind: data.solarWind, xrayFlux: data.xrayFlux };
+      let history = [];
+      try { history = JSON.parse(localStorage.getItem('koyomiban_space_log') || '[]'); } catch(e) {}
+      // 同日上書き
+      const idx = history.findIndex(r => r.date === today);
+      if (idx >= 0) history[idx] = record; else history.push(record);
+      // 直近365日分だけ保持
+      if (history.length > 365) history = history.slice(-365);
+      localStorage.setItem('koyomiban_space_log', JSON.stringify(history));
+    } catch(e) {}
+  } catch(err) {
+    // 取得失敗しても表に出さない。裏の記録なので。
+    console.log('宇宙天気データ取得失敗:', err.message);
+  }
+}
+
+// ===== Phase 5: 観測ログ基盤 =====
+const LOG_KEY = 'koyomiban_records';
+const LOG_MAX_DAYS = 3650; // 10年分
+
+function loadRecords() {
+  try { return JSON.parse(localStorage.getItem(LOG_KEY) || '[]'); } catch(e) { return []; }
+}
+function saveRecords(records) {
+  try {
+    if (records.length > LOG_MAX_DAYS) records = records.slice(-LOG_MAX_DAYS);
+    localStorage.setItem(LOG_KEY, JSON.stringify(records));
+  } catch(e) { console.log('観測ログ保存失敗:', e.message); }
+}
+
+function recordToday() {
+  // 天気データと天文データが揃ってから呼ぶ
+  const now = new Date();
+  const today = now.toISOString().split('T')[0];
+  const mz = moonZodiac(now);
+  const sl = sunLon(now);
+  const sk = find(SEKKI, sl);
+  const ko = find(KO72, sl);
+  const mp = moonPhase(now);
+  const st = sunTimes(now);
+  const daily = _weatherData ? todayWeatherSummary(_weatherData) : null;
+  const hourly = _weatherData ? todayHourlySummary(_weatherData) : null;
+
+  const record = {
+    date: today,
+    ts: Math.floor(now.getTime() / 1000),
+    loc: { lat: CFG.lat, lon: CFG.lon, alt: _currentAnalysis?.elev || CFG.alt },
+    astro: {
+      moon_age: Math.round(mp.age * 10) / 10,
+      moon_phase: mp.name,
+      bd_day: mz.sign.bd,
+      sekki_24: sk.name,
+      sekki_72: ko.name,
+      sunrise: st ? fmt(st.rise) : null,
+      sunset: st ? fmt(st.set) : null,
+      day_length_min: st ? st.min : null,
+    },
+    wx: daily ? {
+      temp_max: daily.maxT,
+      temp_min: daily.minT,
+      precip_mm: daily.precip,
+      snow_sum: daily.snow,
+      wind_max_ms: daily.windMax,
+      humidity_avg: hourly?.avgHumidity || null,
+      soil_temp: hourly?.soilTemp || null,
+      snow_depth_cm: hourly?.snowDepth || null,
+      pressure_hpa: hourly?.pressure?.current || null,
+      pressure_change_3h: hourly?.pressure?.change || null,
+      pressure_trend: hourly?.pressure?.trend || null,
+    } : null,
+    space: _spaceData ? {
+      kp: _spaceData.kp,
+      solar_wind_kms: _spaceData.solarWind,
+      xray_flux: _spaceData.xrayFlux,
+    } : null,
+    terrain: _currentAnalysis ? {
+      elev: _currentAnalysis.elev,
+      slope_dir: _currentAnalysis.slope?.direction || null,
+      frost_terrain: _currentAnalysis.frost,
+    } : null,
+    meta: {
+      version: 2,
+      sources: [
+        'astronomy-engine',
+        ...(daily ? ['open-meteo'] : []),
+        ...(_spaceData?.kp != null ? ['noaa-swpc'] : []),
+        ...(_currentAnalysis ? ['gsi-elevation'] : []),
+      ],
+    },
+  };
+
+  // 保存（同日上書き）
+  const records = loadRecords();
+  const idx = records.findIndex(r => r.date === today);
+  if (idx >= 0) records[idx] = record; else records.push(record);
+  saveRecords(records);
+
+  updateLogStatus();
+  return record;
+}
+
+function updateLogStatus() {
+  const el = document.getElementById('logStatus');
+  if (!el) return;
+  const records = loadRecords();
+  if (records.length === 0) {
+    el.innerHTML = '<span style="color:var(--text-dim)">まだ記録がありません</span>';
+    return;
+  }
+  const first = records[0].date;
+  const last = records[records.length - 1].date;
+  const sizeKB = Math.round(JSON.stringify(records).length / 1024);
+  el.innerHTML = `${records.length}日分の記録（${first} 〜 ${last}） ${sizeKB}KB`;
+}
+
+function exportRecords() {
+  const records = loadRecords();
+  if (records.length === 0) { alert('エクスポートする記録がありません'); return; }
+  const json = JSON.stringify(records, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `koyomiban_records_${new Date().toISOString().split('T')[0]}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function importRecords(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const imported = JSON.parse(e.target.result);
+      if (!Array.isArray(imported)) { alert('無効なデータ形式です'); return; }
+      const existing = loadRecords();
+      // マージ（同日は新しい方で上書き）
+      const merged = [...existing];
+      for (const rec of imported) {
+        const idx = merged.findIndex(r => r.date === rec.date);
+        if (idx >= 0) merged[idx] = rec; else merged.push(rec);
+      }
+      merged.sort((a, b) => a.date.localeCompare(b.date));
+      saveRecords(merged);
+      updateLogStatus();
+      alert(`${imported.length}件のデータをインポートしました（合計${merged.length}日分）`);
+    } catch(err) {
+      alert('インポートに失敗しました: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function calcEnhancedFrostRisk(minTemp, humidity, windSpeed, terrainScore) {
+  let score = terrainScore || 50;
+  if (minTemp <= -5) score += 30;
+  else if (minTemp <= 0) score += 20;
+  else if (minTemp <= 3) score += 10;
+  else if (minTemp <= 5) score += 0;
+  else if (minTemp <= 8) score -= 10;
+  else score -= 20;
+  if (humidity > 80) score -= 5;
+  else if (humidity < 50) score += 5;
+  if (windSpeed > 5) score -= 10;
+  else if (windSpeed > 3) score -= 5;
+  else if (windSpeed < 1) score += 8;
+  score = Math.max(0, Math.min(100, Math.round(score)));
+  let level, desc;
+  if (score >= 70) { level='高'; desc='今夜は霜が降りる可能性が高いです。不織布やトンネルで対策を。'; }
+  else if (score >= 50) { level='中'; desc='霜の可能性があります。特に明け方の低温に注意。'; }
+  else if (score >= 30) { level='やや低'; desc='霜のリスクは低めですが、急な冷え込みには注意。'; }
+  else { level='低'; desc='霜の心配はほぼありません。'; }
+  return { score, level, desc };
+}
+</script>
+</body>
+</html>
