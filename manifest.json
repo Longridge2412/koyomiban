@@ -3,7 +3,7 @@
   "short_name": "KOYOMI-BAN",
   "description": "NEO百姓の暦",
   "start_url": "./index.html",
-  "display": "minimal-ui",
+  "display": "browser",
   "background_color": "#f5f3ef",
   "theme_color": "#3a8a4f",
   "icons": [
