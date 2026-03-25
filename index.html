@@ -4,13 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>KOYOMI-BAN</title>
-<link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="KOYOMI-BAN">
-<meta name="theme-color" content="#3a8a4f">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -49,7 +42,7 @@
     content: '';
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
-    background: url('bg.jpg') center top / cover no-repeat;
+    background: url('背景.jpg') center top / cover no-repeat;
     opacity: 0.18;
     z-index: -2;
     pointer-events: none;
@@ -463,7 +456,7 @@
   overflow:hidden;
 ">
   <div style="position:absolute;top:0;left:0;right:0;bottom:0;
-    background:url('splash.png') center/cover no-repeat;
+    background:url('スプラッシュスクリーン.png') center/cover no-repeat;
     opacity:0;animation:splashBgIn 2s ease-out 0s forwards;"></div>
   <div style="position:absolute;top:0;left:0;right:0;bottom:0;
     background:linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.1) 40%, rgba(0,0,0,0.6) 100%);
@@ -488,7 +481,7 @@
 </script>
 
 <header>
-  <img src="logo.png" alt="NEO百姓" class="logo" onerror="this.style.display='none'" />
+  <img src="ロゴ.png" alt="NEO百姓" class="logo" onerror="this.style.display='none'" />
   <h1>KOYOMI-BAN</h1>
   <div class="date-line" id="dateLine"></div>
 </header>
@@ -537,6 +530,9 @@ loadLocations();
 let _currentAnalysis = null;
 let _leafletMap = null;
 let _leafletMarker = null;
+let _soilLayer = null;
+let _soilLineLayer = null;
+let _soilVisible = false;
 
 // ===== 黄道十二宮 =====
 const ZODIAC = [
@@ -712,6 +708,28 @@ const SEKKI = [
   { lon:330,name:'雨水', r:'うすい',     desc:'雪が雨に変わり始める頃。雪解けが始まり、土が目覚め始める。' },
   { lon:345,name:'啓蟄', r:'けいちつ',   desc:'冬眠していた虫が地上に出てくる頃。土が温まり、畑の準備が始まる時期。' },
 ];
+
+// ===== 自然暦データ（加藤・田淵 2016, 全182件） =====
+// 出典: 川口(1972), 星(1975), 星(1979) の3書籍から抽出
+// relevance_nishiaizu: high=東北・新潟・会津, medium=関東北部・北陸, low=西日本, none=無関係
+const SHIZEN_REKI = [{"id":1,"text":"杉檎の植え旬は彼岸の七三","region":"紀伊東牟婁郡","indicator":"彼岸","crop":"杉檎","task":"植え付け","month_approx":[3,4],"source_count":1,"category":"播種時期","relevance_nishiaizu":"low"},{"id":2,"text":"農鳥獄の雪が消えて烏の形だけ残りて見ゆる時がシロカキ時だ","region":"静岡県安倍郡、山梨県北巨摩郡","indicator":"残雪の形","crop":null,"task":"漆掻き","month_approx":[4,5],"source_count":null,"category":"その他","relevance_nishiaizu":"low"},{"id":3,"text":"梅の花の落ちる頃から木接が始まる","region":"筑後","indicator":"梅の落花","crop":null,"task":"木接ぎ","month_approx":[3,4],"source_count":null,"category":"その他","relevance_nishiaizu":"low"},{"id":4,"text":"松の新芽が一寸伸びた頃が植木の植替に最もよい","region":"久留米市","indicator":"松の新芽","crop":"植木","task":"植え替え","month_approx":[3,4],"source_count":null,"category":"その他","relevance_nishiaizu":"low"},{"id":5,"text":"コブシの花の多い年は豊年なり","region":"羽前最上郡","indicator":"コブシの花の多少","crop":null,"task":null,"month_approx":[4,5],"source_count":null,"category":"豊凶占い","relevance_nishiaizu":"high"},{"id":6,"text":"彼岸中に氷が流るるなら種を下すな","region":"陸中閉伊川","indicator":"氷","crop":null,"task":"播種","month_approx":[3,4],"source_count":null,"category":"播種時期","relevance_nishiaizu":"high"},{"id":7,"text":"立木立草の周囲の雪が円く融ければ豊年、北側だけ残れば凶作","region":"陸奥東通村","indicator":"雪融けの形","crop":null,"task":null,"month_approx":[4,5],"source_count":null,"category":"豊凶占い","relevance_nishiaizu":"high"},{"id":8,"text":"彼岸過ぎての麦の肥","region":"加賀松任地方","indicator":"彼岸","crop":"麦","task":"施肥","month_approx":[3,4],"source_count":null,"category":"その他","relevance_nishiaizu":"medium"},{"id":9,"text":"山桜が咲いたら麻を蒔かにゃならぬ","region":"因幡八頭郡","indicator":"山桜の開花","crop":"麻","task":"播種","month_approx":[4,5],"source_count":null,"category":"播種時期","relevance_nishiaizu":"medium"},{"id":10,"text":"山木蓮が咲くと籾蒔をせねばならぬ、散ると田植を始めにゃならぬ","region":"石見鹿足郡","indicator":"コブシの開花・散花","crop":"米","task":"播種、田植え","month_approx":[4,5],"source_count":null,"category":"播種時期","relevance_nishiaizu":"high"},{"id":11,"text":"コブシの花が咲くと畑豆を蒔かねばならぬ","region":"佐渡","indicator":"コブシの開花","crop":"大豆","task":"播種","month_approx":[4,5],"source_count":null,"category":"播種時期","relevance_nishiaizu":"high"},{"id":12,"text":"楢の新芽が緑くなると（新芽は白っぽい）稗を蒔け","region":"下野塩谷郡","indicator":"楢の新芽","crop":"稗","task":"播種","month_approx":[4,5],"source_count":null,"category":"播種時期","relevance_nishiaizu":"medium"},{"id":13,"text":"田打桜","region":"陸奥中津軽郡","indicator":"桜の開花","crop":"米","task":"耕作","month_approx":[4,5],"source_count":null,"category":"田植え時期","relevance_nishiaizu":"high"},{"id":14,"text":"田打ち桜","region":"秋田県鹿角郡","indicator":"コブシの開花","crop":"米","task":"耕作","month_approx":[4,5],"source_count":null,"category":"田植え時期","relevance_nishiaizu":"high"},{"id":15,"text":"田横桜","region":"秋田県鹿角郡","indicator":"コブシの開花","crop":"米","task":"耕作","month_approx":[4,5],"source_count":null,"category":"田植え時期","relevance_nishiaizu":"high"},{"id":16,"text":"種蒔桜","region":"佐渡","indicator":"桜の開花","crop":null,"task":"播種","month_approx":[4,5],"source_count":null,"category":"播種時期","relevance_nishiaizu":"medium"},{"id":17,"text":"種蒔桜","region":"宮城県栗原郡","indicator":"桜の開花","crop":null,"task":"播種","month_approx":[4,5],"source_count":null,"category":"播種時期","relevance_nishiaizu":"high"},{"id":18,"text":"種蒔桜","region":"羽前西村山郡","indicator":"桜の開花","crop":null,"task":"播種","month_approx":[4,5],"source_count":null,"category":"播種時期","relevance_nishiaizu":"high"},{"id":19,"text":"栗駒山に種蒔坊主","region":"宮城県仙北地方","indicator":"残雪の形","crop":null,"task":"播種","month_approx":[4,5],"source_count":null,"category":"播種時期","relevance_nishiaizu":"high"},{"id":20,"text":"カラスヤが芽を出すと種蒔にかかる","region":"宮城県鳴子","indicator":"植物の発芽","crop":null,"task":"播種","month_approx":[4,5],"source_count":null,"category":"播種時期","relevance_nishiaizu":"high"},{"id":21,"text":"麻蒔桜","region":"岐阜県揖斐郡","indicator":"桜の開花","crop":"麻","task":"播種","month_approx":[4,5],"source_count":null,"category":"播種時期","relevance_nishiaizu":"medium"},{"id":22,"text":"山桜が咲くと甘藷の種をふせよ","region":"伊予北宇和郡","indicator":"山桜の開花","crop":"甘藷","task":"播種","month_approx":[4,5],"source_count":null,"category":"播種時期","relevance_nishiaizu":"low"},{"id":23,"text":"桜の花が山の中腹まで咲き上ったら茄子の種下ろしと甘藷の首の植つけ","region":"阿波那賀川上流","indicator":"桜の開花進行","crop":"茄子、甘藷","task":"播種、植え付け","month_approx":[4,5],"source_count":null,"category":"播種時期","relevance_nishiaizu":"low"},{"id":24,"text":"駒形山の白馬と種蒔き","region":"陸中と羽後の国境","indicator":"残雪の形","crop":null,"task":"播種","month_approx":[4,5],"source_count":null,"category":"播種時期","relevance_nishiaizu":"high"},{"id":25,"text":"藤の花が咲き始めると稗を蒔かぬばならぬ","region":"下野塩谷郡","indicator":"藤の開花","crop":"稗","task":"播種","month_approx":[4,5],"source_count":null,"category":"播種時期","relevance_nishiaizu":"medium"},{"id":26,"text":"お不動さんの藤が花咲きゃ粟の蒔旬","region":"紀伊東牟婁郡","indicator":"藤の開花","crop":"粟","task":"播種","month_approx":[4,5],"source_count":null,"category":"播種時期","relevance_nishiaizu":"low"},{"id":27,"text":"梨の花咲きゃ粟を蒔け","region":"紀伊東牟婁郡","indicator":"梨の開花","crop":"粟","task":"播種","month_approx":[4,5],"source_count":null,"category":"播種時期","relevance_nishiaizu":"low"},{"id":28,"text":"榛のキナが彼岸に伸びると豊年、彼岸に後れれば凶作","region":"陸奥三戸郡","indicator":"榛の穂の伸長","crop":null,"task":null,"month_approx":[3,4],"source_count":null,"category":"豊凶占い","relevance_nishiaizu":"high"},{"id":29,"text":"マンサクの咲かぬ年は不作なり","region":"羽前最上郡","indicator":"マンサクの開花","crop":null,"task":null,"month_approx":[2,3],"source_count":null,"category":"豊凶占い","relevance_nishiaizu":"high"},{"id":30,"text":"柳の白いのが多い年は豊年、少い年は不作なり","region":"羽前最上郡","indicator":"柳の穂","crop":null,"task":null,"month_approx":[3,4],"source_count":null,"category":"豊凶占い","relevance_nishiaizu":"high"},{"id":31,"text":"富士の農男、甲斐の野烏","region":"富士山周辺","indicator":"残雪の形","crop":null,"task":null,"month_approx":[4,5],"source_count":null,"category":"豊凶占い","relevance_nishiaizu":"low"},{"id":32,"text":"上茶ツツジ","region":"筑後八女郡","indicator":"ツツジの開花","crop":"茶","task":"摘採","month_approx":[4,5],"source_count":null,"category":"収穫時期","relevance_nishiaizu":"low"},{"id":33,"text":"荒神のフロの藤の花盛りがへイトコの出盛り","region":"美作真庭郡","indicator":"藤とタケの生長","crop":"タケ","task":"収穫","month_approx":[4,5],"source_count":null,"category":"収穫時期","relevance_nishiaizu":"low"},{"id":34,"text":"催青は早稲桑の燕口の時","region":"薩摩","indicator":"桑の芽吹き","crop":"蚕、稲","task":"給桑、田植え","month_approx":[4,5],"source_count":null,"category":"田植え時期","relevance_nishiaizu":"low"},{"id":35,"text":"ハダンキョウの花盛りをみてから二十日許りして、サクラの花盛りをみてから十日後に、催青にかかれ","region":"薩摩","indicator":"複数植物の開花","crop":"蚕、稲","task":"給桑、田植え","month_approx":[4,5],"source_count":null,"category":"田植え時期","relevance_nishiaizu":"low"},{"id":36,"text":"麻蒔鳥","region":"筑前雷山地方","indicator":"鳥の出現","crop":"麻","task":"播種","month_approx":[4,5],"source_count":null,"category":"播種時期","relevance_nishiaizu":"low"},{"id":37,"text":"傾山の八合目が緑（アオ）んあら苗代時","region":"豊後大野郡","indicator":"山の緑化","crop":"米","task":"苗代作成","month_approx":[4,5],"source_count":null,"category":"田植え時期","relevance_nishiaizu":"low"},{"id":38,"text":"棒（ケヤキ）の葉が早く出ると最早晩霜が来ない","region":"陸中気仙郡","indicator":"ケヤキの発葉","crop":null,"task":null,"month_approx":[4,5],"source_count":null,"category":"気象予測","relevance_nishiaizu":"medium"},{"id":39,"text":"山毛棒の若芽が緑（あお）くなったら種を下ろせ","region":"羽前西村山郡","indicator":"ブナの新芽","crop":null,"task":"播種","month_approx":[4,5],"source_count":null,"category":"播種時期","relevance_nishiaizu":"high"},{"id":40,"text":"金北山の種蒔猿","region":"佐渡","indicator":"残雪の形","crop":null,"task":"播種","month_approx":[4,5],"source_count":null,"category":"播種時期","relevance_nishiaizu":"high"},{"id":41,"text":"橡の花盛りが稗蒔","region":"上野奥利根","indicator":"クヌギの開花","crop":"稗","task":"播種","month_approx":[4,5],"source_count":null,"category":"播種時期","relevance_nishiaizu":"high"},{"id":42,"text":"柿の若葉に大豆粒が一杯になる頃大豆を蒔かにゃならぬ","region":"甑島上甑村","indicator":"柿の若葉の伸長","crop":"大豆","task":"播種","month_approx":[4,5],"source_count":null,"category":"播種時期","relevance_nishiaizu":"low"},{"id":43,"text":"柿の若芽が夏大豆を三粒載せ得る頃はその種蒔き時である","region":"久留米地方","indicator":"柿の若芽の伸長","crop":"大豆","task":"播種","month_approx":[5,6],"source_count":null,"category":"播種時期","relevance_nishiaizu":"low"},{"id":44,"text":"柿の芽が出始めたから大豆を蒔かねばならぬ","region":"筑前宗像郡","indicator":"柿の発芽","crop":"大豆","task":"播種","month_approx":[4,5],"source_count":null,"category":"播種時期","relevance_nishiaizu":"low"},{"id":45,"text":"桐の花の咲く頃に豆を蒔け","region":"陸奥下北郡","indicator":"桐の開花","crop":"豆","task":"播種","month_approx":[4,5],"source_count":null,"category":"播種時期","relevance_nishiaizu":"high"},{"id":46,"text":"ノハチクがぬけたら大豆を蒔け、マダ苧ケがぬけたら栗を蒔け","region":"傾山麓","indicator":"植物の枯死","crop":"大豆、栗","task":"播種","month_approx":[4,6],"source_count":null,"category":"播種時期","relevance_nishiaizu":"low"},{"id":47,"text":"鐙尻の第一の花に大豆まけ、第二の花に粟を蒔け","region":"傾山麓","indicator":"植物の開花","crop":"大豆、粟","task":"播種","month_approx":[4,6],"source_count":null,"category":"播種時期","relevance_nishiaizu":"low"},{"id":48,"text":"ウツギの蓄がみゆると稗を植ゆる","region":"陸奥下北半島","indicator":"ウツギの開花","crop":"稗","task":"植え付け","month_approx":[5,6],"source_count":null,"category":"田植え時期","relevance_nishiaizu":"high"},{"id":49,"text":"柿の葉の二つ葉が出る頃牛募の蒔き時である","region":"肥前平戸島","indicator":"柿の葉の展開","crop":"ゴボウ","task":"播種","month_approx":[5,6],"source_count":null,"category":"播種時期","relevance_nishiaizu":"low"},{"id":50,"text":"里芋は五月歌聴いて葉を出す","region":"越後東蒲原郡","indicator":"五月（時季）","crop":"里芋","task":"生長","month_approx":[5,6],"source_count":null,"category":"その他","relevance_nishiaizu":"low"},{"id":51,"text":"イチゴが咲いたら甘藷蔓を植えねばならぬ","region":"志摩賢島","indicator":"イチゴの開花","crop":"甘藷","task":"植え付け","month_approx":[4,5],"source_count":null,"category":"播種時期","relevance_nishiaizu":"low"},{"id":52,"text":"閏年は蚕豆一方のみに花咲く故収穫少し","region":"紀伊","indicator":"閏年","crop":"蚕豆","task":null,"month_approx":[4,5],"source_count":null,"category":"豊凶占い","relevance_nishiaizu":"low"},{"id":53,"text":"甘藷の新蔓の挿し植え頃はヒラクチの出盛り、大豆の採り入れ時がヒラクチの最も荒れる頃","region":"肥後玉名郡","indicator":"昆虫の活動","crop":"甘藷、大豆","task":"植え付け、収穫","month_approx":[7,8],"source_count":null,"category":"その他","relevance_nishiaizu":"low"},{"id":54,"text":"豆蒔烏が両者くから立を蒔かねばならぬ","region":"近畿地方","indicator":"カッコウの初鳴","crop":"大豆","task":"播種","month_approx":[5,6],"source_count":null,"category":"播種時期","relevance_nishiaizu":"low"},{"id":55,"text":"カッコウが暗くから大豆を蒔かねばならぬ","region":"信濃東筑摩郡","indicator":"カッコウの初鳴","crop":"大豆","task":"播種","month_approx":[5,6],"source_count":null,"category":"播種時期","relevance_nishiaizu":"low"},{"id":56,"text":"トットが鳴き出したから粟を蒔け、カッコウが鳴くから豆を蒔け","region":"青森県下北郡","indicator":"鳥の初鳴","crop":"粟、豆","task":"播種","month_approx":[5,6],"source_count":null,"category":"播種時期","relevance_nishiaizu":"high"},{"id":57,"text":"カッコウが鳴くから粟を蒔け、トットが","region":"陸奥中津軽郡","indicator":"鳥の初鳴","crop":"粟","task":"播種","month_approx":[5,6],"source_count":null,"category":"播種時期","relevance_nishiaizu":"high"},{"id":58,"text":"ヒョウタンドリがないたから粟を蒔け","region":"備後東城地方","indicator":"鳥の初鳴","crop":"粟","task":"播種","month_approx":[5,6],"source_count":null,"category":"播種時期","relevance_nishiaizu":"low"},{"id":59,"text":"カッコワが鳴くから稗蒔き","region":"陸中盛町","indicator":"カッコウの初鳴","crop":"稗","task":"播種","month_approx":[5,6],"source_count":null,"category":"播種時期","relevance_nishiaizu":"high"},{"id":60,"text":"カッコウが暗くと大豆を蒔かねばなら","region":"伯者東伯郡","indicator":"カッコウの初鳴","crop":"大豆","task":"播種","month_approx":[5,6],"source_count":null,"category":"播種時期","relevance_nishiaizu":"low"},{"id":61,"text":"ガッポウが鳴くと黍の植付が後れた","region":"土佐梼原","indicator":"カッコウの初鳴","crop":"黍","task":"植え付け","month_approx":[5,6],"source_count":3,"category":"播種時期","relevance_nishiaizu":"low"},{"id":62,"text":"郭公が日帝くと山藷の蔓が出る","region":"越後東蒲原郡","indicator":"カッコウの初鳴","crop":"山芋","task":"生長","month_approx":[5,6],"source_count":3,"category":"その他","relevance_nishiaizu":"low"},{"id":63,"text":"トットが来たさ豆を植えよ、カッコウが","region":"羽後鹿角郡","indicator":"鳥の初鳴","crop":"豆","task":"植え付け","month_approx":[5,6],"source_count":null,"category":"播種時期","relevance_nishiaizu":"high"},{"id":64,"text":"郭公が鳴くから豆を蒔け","region":"陸奥下北郡","indicator":"カッコウの初鳴","crop":"豆","task":"播種","month_approx":[5,6],"source_count":null,"category":"播種時期","relevance_nishiaizu":"high"},{"id":65,"text":"トットに籾蒔き、カツコに粟蒔き、ホトトギスに黍蒔き、ホトトギスに","region":"秋田県北秋田郡","indicator":"鳥の初鳴","crop":"米、粟、黍","task":"播種","month_approx":[5,6],"source_count":3,"category":"播種時期","relevance_nishiaizu":"high"},{"id":66,"text":"麦が豊年なりや米も豊年","region":"紀伊西牟婁郡","indicator":"麦の豊作","crop":"米、麦","task":null,"month_approx":[6,7],"source_count":null,"category":"豊凶占い","relevance_nishiaizu":"low"},{"id":67,"text":"榎の葉にスズメがとまっても見られなくなるまで麦の穗が満ちたら","region":"佐渡金北山","indicator":"麦穂の充実","crop":"麦","task":"収穫","month_approx":[6,7],"source_count":null,"category":"収穫時期","relevance_nishiaizu":"high"},{"id":68,"text":"けとけとが時けば手苗を捨てて豆を蒔かれ","region":"紀伊","indicator":"カッコウの初鳴","crop":"豆","task":"播種","month_approx":[5,6],"source_count":null,"category":"播種時期","relevance_nishiaizu":"low"},{"id":69,"text":"コカンボが咲くと大豆を蒔かにゃなら","region":"筑後八女郡","indicator":"合歓の開花","crop":"大豆","task":"播種","month_approx":[5,6],"source_count":null,"category":"播種時期","relevance_nishiaizu":"low"},{"id":70,"text":"稗蒔翁、稗蒔婆","region":"木曾駒ヶ搬","indicator":"残雪の形","crop":"稗","task":"播種","month_approx":[4,5],"source_count":null,"category":"播種時期","relevance_nishiaizu":"high"},{"id":71,"text":"コーカの最初の花に豆を蒔け、次の花に","region":"蛍尻","indicator":"植物の開花段階","crop":"豆、粟","task":"播種","month_approx":[4,6],"source_count":null,"category":"播種時期","relevance_nishiaizu":"low"},{"id":72,"text":"アオバトが盛に鳴くから田植も終頃と","region":"青森県","indicator":"アオバトの初鳴","crop":"米","task":"田植え","month_approx":[5,6],"source_count":null,"category":"田植え時期","relevance_nishiaizu":"high"},{"id":73,"text":"ホトトギスのさかり頃田植する、カナカナが澄んだら田植えも終わり","region":"山形県最上郡","indicator":"鳥の初鳴","crop":"米","task":"田植え","month_approx":[5,6],"source_count":null,"category":"田植え時期","relevance_nishiaizu":"high"},{"id":74,"text":"オーブ山の雪の残りが馬一匹に見ゆるから田植を始めよ","region":"陸奥中津軽郡","indicator":"残雪の形","crop":"米","task":"田植え","month_approx":[4,5],"source_count":null,"category":"田植え時期","relevance_nishiaizu":"high"},{"id":75,"text":"三自草（ハンゲショウ）（一名カタジロ）","region":"宗像郡上西郷村","indicator":"ハンゲショウの開花","crop":"米","task":"田植え","month_approx":[5,6],"source_count":null,"category":"田植え時期","relevance_nishiaizu":"low"},{"id":76,"text":"栗駒にスビ型が出ると田植を始めよ","region":"宮城県仙北地方","indicator":"残雪の形","crop":"米","task":"田植え","month_approx":[4,5],"source_count":null,"category":"田植え時期","relevance_nishiaizu":"high"},{"id":77,"text":"街が網を張れば田植時となる","region":"豊後竹田","indicator":"竹の生長","crop":"米","task":"田植え","month_approx":[5,6],"source_count":null,"category":"田植え時期","relevance_nishiaizu":"low"},{"id":78,"text":"メジロの多く渡り来ると梅が多く実る、梅が多く実ると米も豊作","region":"甑島上甑村","indicator":"メジロの渡来","crop":"梅、米","task":null,"month_approx":[3,4],"source_count":null,"category":"豊凶占い","relevance_nishiaizu":"low"},{"id":79,"text":"雷が鳴るとトウマメが落つる","region":"筑後国分倉","indicator":"落雷","crop":"豆","task":null,"month_approx":[6,7],"source_count":null,"category":"気象予測","relevance_nishiaizu":"low"},{"id":80,"text":"ムギツキが時くから明日はムギ刈らむばならぬ","region":"百済来村","indicator":"ウグイスの初鳴","crop":"麦","task":"収穫","month_approx":[5,6],"source_count":null,"category":"収穫時期","relevance_nishiaizu":"low"},{"id":81,"text":"粟蒔きドンコ","region":"筑後瀬高町","indicator":"ヨシノボリの出現","crop":"粟","task":"播種","month_approx":[5,6],"source_count":null,"category":"播種時期","relevance_nishiaizu":"low"},{"id":82,"text":"メマキウグイ","region":"陸奥下北郡田名部町","indicator":"ウグイスの鳴く","crop":null,"task":null,"month_approx":[2,3],"source_count":null,"category":"その他","relevance_nishiaizu":"high"},{"id":140,"text":"ニワトコの芽出しを見てから桑に芽出肥","region":"栃木県南部","indicator":"ニワトコの発芽","crop":"桑","task":"施肥","month_approx":[1,2],"source_count":2,"category":"その他","relevance_nishiaizu":"low"},{"id":141,"text":"ブナの若芽が緑になったら種を下せ","region":"山形県","indicator":"ブナの新芽","crop":null,"task":"播種","month_approx":[4,5],"source_count":2,"category":"播種時期","relevance_nishiaizu":"high"},{"id":142,"text":"コブシの花が咲けば苗代の種まきが始まる","region":"島根県","indicator":"コブシの開花","crop":"米","task":"播種","month_approx":[4,5],"source_count":2,"category":"播種時期","relevance_nishiaizu":"high"},{"id":143,"text":"カッコウが鳴くから粟（あわ）をまけ","region":"青森県","indicator":"カッコウの初鳴","crop":"粟","task":"播種","month_approx":[5,6],"source_count":null,"category":"播種時期","relevance_nishiaizu":"high"},{"id":144,"text":"粟（あわ）まきゼミ","region":"全国","indicator":"ハルゼミの初鳴","crop":"粟","task":"播種","month_approx":[5,6],"source_count":null,"category":"播種時期","relevance_nishiaizu":"high"},{"id":145,"text":"アワが実入ればウズラが立つ","region":"全国","indicator":"ウズラの出現","crop":"粟","task":"熟成の確認","month_approx":[8,9],"source_count":null,"category":"その他","relevance_nishiaizu":"medium"},{"id":146,"text":"稗（ヒエ）は麦より三日前畦豆は三日後","region":"長野県","indicator":"播種時期の差","crop":"稗、大豆","task":"播種","month_approx":[4,6],"source_count":2,"category":"播種時期","relevance_nishiaizu":"high"},{"id":147,"text":"ヒエまきは首代下り","region":"長野県","indicator":"苗代の状態","crop":"稗","task":"播種","month_approx":[4,5],"source_count":null,"category":"播種時期","relevance_nishiaizu":"high"},{"id":148,"text":"豆まき小僧","region":"山梨県","indicator":"不明","crop":"豆","task":"播種","month_approx":[5,6],"source_count":null,"category":"播種時期","relevance_nishiaizu":"low"},{"id":149,"text":"豆まきカッコウにヒエまきどき","region":"全国","indicator":"カッコウの初鳴","crop":"豆、稗","task":"播種","month_approx":[5,6],"source_count":null,"category":"播種時期","relevance_nishiaizu":"high"},{"id":150,"text":"フジの花に豆まき","region":"新潟県","indicator":"藤の開花","crop":"豆","task":"播種","month_approx":[4,5],"source_count":null,"category":"播種時期","relevance_nishiaizu":"medium"},{"id":151,"text":"卯の花盛りには豆をまけ","region":"全国","indicator":"ウツギの開花","crop":"豆","task":"播種","month_approx":[5,6],"source_count":null,"category":"播種時期","relevance_nishiaizu":"high"},{"id":152,"text":"ヤマバト鳴いたら豆をまけ","region":"全国","indicator":"ヤマバトの鳴く","crop":"豆","task":"播種","month_approx":[5,6],"source_count":null,"category":"播種時期","relevance_nishiaizu":"medium"},{"id":153,"text":"カッコウが鳴けば種をまけ","region":"北海道","indicator":"カッコウの初鳴","crop":null,"task":"播種","month_approx":[5,6],"source_count":2,"category":"播種時期","relevance_nishiaizu":"low"},{"id":154,"text":"キリの花が咲き出せばゴマまき","region":"全国","indicator":"桐の開花","crop":"ゴマ","task":"播種","month_approx":[5,6],"source_count":2,"category":"播種時期","relevance_nishiaizu":"low"},{"id":155,"text":"藤の花見て綿をまけ","region":"全国","indicator":"藤の開花","crop":"綿","task":"播種","month_approx":[4,5],"source_count":2,"category":"播種時期","relevance_nishiaizu":"low"},{"id":156,"text":"ホトトギスが鳴いたら茶を摘み麦を刈","region":"全国","indicator":"ホトトギスの初鳴","crop":"茶、麦","task":"摘採、収穫","month_approx":[5,6],"source_count":2,"category":"収穫時期","relevance_nishiaizu":"medium"},{"id":157,"text":"桜の花が中腹まで咲き上がったらサツマイモは","region":"全国","indicator":"桜の開花進行","crop":"サツマイモ","task":"植え付け","month_approx":[4,5],"source_count":2,"category":"播種時期","relevance_nishiaizu":"low"},{"id":158,"text":"がっぽうが来るとタケノコが出る","region":"全国","indicator":"カッコウの初鳴","crop":"タケノコ","task":"収穫","month_approx":[5,6],"source_count":2,"category":"収穫時期","relevance_nishiaizu":"low"},{"id":159,"text":"田植え花が咲いて田植え","region":"全国","indicator":"ウツギの開花","crop":"米","task":"田植え","month_approx":[5,6],"source_count":3,"category":"田植え時期","relevance_nishiaizu":"high"},{"id":160,"text":"木喜実れば田植えの時じゃ","region":"全国","indicator":"イチゴの結実","crop":"米","task":"田植え","month_approx":[5,6],"source_count":3,"category":"田植え時期","relevance_nishiaizu":"high"},{"id":161,"text":"桑荏に田植え","region":"全国","indicator":"グミの結実","crop":"米","task":"田植え","month_approx":[5,6],"source_count":3,"category":"田植え時期","relevance_nishiaizu":"high"},{"id":162,"text":"こうかの木の一番花が一番草二番花が三番草","region":"全国","indicator":"ネムノキの開花段階","crop":"米","task":"除草","month_approx":[5,7],"source_count":3,"category":"田植え時期","relevance_nishiaizu":"high"},{"id":163,"text":"かち烏が見えたら麦をまかねばならぬ","region":"全国","indicator":"ミヤマガラスの渡来","crop":"麦","task":"播種","month_approx":[9,10],"source_count":3,"category":"播種時期","relevance_nishiaizu":"low"},{"id":164,"text":"麦がうれてくるむぎつきが鳴く","region":"全国","indicator":"アオバズクの初鳴","crop":"麦","task":"熟成の確認","month_approx":[5,6],"source_count":3,"category":"収穫時期","relevance_nishiaizu":"low"},{"id":165,"text":"麦枯らし","region":"全国","indicator":"オオヨシキリの出現","crop":"麦","task":"収穫","month_approx":[6,7],"source_count":3,"category":"収穫時期","relevance_nishiaizu":"low"},{"id":166,"text":"麦の穂がでるとシャクが肥える","region":"熊本県","indicator":"ウズラの出現","crop":"麦","task":"穂の確認","month_approx":[5,6],"source_count":3,"category":"その他","relevance_nishiaizu":"low"},{"id":167,"text":"麦の猿面","region":"佐賀県","indicator":"麦穂の熟成","crop":"麦","task":"収穫","month_approx":[6,7],"source_count":3,"category":"収穫時期","relevance_nishiaizu":"low"},{"id":168,"text":"かぎ豆","region":"長崎県","indicator":"大豆の伸長","crop":"麦、大豆","task":"収穫、確認","month_approx":[6,7],"source_count":3,"category":"収穫時期","relevance_nishiaizu":"low"},{"id":169,"text":"麦は三合青刈りせよ稲は三合落として刈れ","region":"新潟県","indicator":"穀物の熟成度","crop":"麦、米","task":"収穫","month_approx":[6,7],"source_count":3,"category":"収穫時期","relevance_nishiaizu":"low"},{"id":170,"text":"憂珠しゃ華の花の咲くときは蕎麦のまくとき","region":"和歌山県","indicator":"ヒガンバナの開花","crop":"蕎麦","task":"播種","month_approx":[8,9],"source_count":3,"category":"播種時期","relevance_nishiaizu":"low"},{"id":171,"text":"蕎麦まき騎蛤","region":"高知県","indicator":"トンボの出現","crop":"蕎麦","task":"播種","month_approx":[8,9],"source_count":3,"category":"播種時期","relevance_nishiaizu":"low"},{"id":172,"text":"蕎麦は二、三男取るより長男を取れ","region":"鹿児島県","indicator":"蕎麦の成熟段階","crop":"蕎麦","task":"収穫","month_approx":[10,11],"source_count":3,"category":"収穫時期","relevance_nishiaizu":"low"},{"id":173,"text":"稲の新芽が青くなったら稗（ひえ）をまけ","region":"群馬県","indicator":"米の発芽","crop":"稗","task":"播種","month_approx":[4,5],"source_count":3,"category":"播種時期","relevance_nishiaizu":"high"},{"id":174,"text":"稗（ひえ）まきとど","region":"青森県","indicator":"ホトトギスの初鳴","crop":"稗","task":"播種","month_approx":[5,6],"source_count":3,"category":"播種時期","relevance_nishiaizu":"high"},{"id":175,"text":"稗（ひえ）まきは苗代下り","region":"長野県","indicator":"苗代の状態","crop":"稗","task":"播種","month_approx":[4,5],"source_count":3,"category":"播種時期","relevance_nishiaizu":"high"},{"id":176,"text":"雀（すずめ）隠しゃ早く烏（からす）隠しゃ遅い","region":"鹿児島県","indicator":"木の葉の茂り具合","crop":"大豆","task":"播種","month_approx":[5,6],"source_count":3,"category":"播種時期","relevance_nishiaizu":"low"},{"id":177,"text":"牛芳の種まきは柿の葉三枚","region":"岐阜県","indicator":"柿の葉の展開","crop":"ゴボウ","task":"播種","month_approx":[5,6],"source_count":3,"category":"播種時期","relevance_nishiaizu":"low"},{"id":83,"text":"栗駒にスビ型が出ると田植を始めよ","region":"宮城県仙北地方","indicator":"残雪の形（栗駒山）","crop":"米","task":"田植え","month_approx":[5,6],"source_count":1,"category":"田植え時期","relevance_nishiaizu":"high"},{"id":84,"text":"笹が網を張れば田植時となる","region":"豊後竹田附近","indicator":"笹の成長","crop":"米","task":"田植え","month_approx":[5,6],"source_count":1,"category":"田植え時期","relevance_nishiaizu":"low"},{"id":85,"text":"メジロの多く渡り来ると梅が多く実る。ヒヨドリが多く渡り来るとカタシが多く生る","region":"甑島上甑村中附近","indicator":"メジロ・ヒヨドリの渡り","crop":"梅","task":null,"month_approx":[1,3],"source_count":1,"category":"豊凶占い","relevance_nishiaizu":"low"},{"id":86,"text":"雷が鳴るとトウマメが落つ","region":"筑後","indicator":"雷","crop":"蚕豆","task":null,"month_approx":[6,7],"source_count":1,"category":"気象予測","relevance_nishiaizu":"low"},{"id":87,"text":"ムギツキが鳴くから明日はムギ刈らむばん","region":"百済来村辺農夫の語","indicator":"ムギツキの鳴き声","crop":"麦","task":"刈り取り","month_approx":[6,7],"source_count":1,"category":"収穫時期","relevance_nishiaizu":"low"},{"id":88,"text":"粟蒔きドンコ","region":"筑後頴田町附近","indicator":"ヨシノボリ（ドンコ）の出現","crop":"粟","task":"播種","month_approx":[4,5],"source_count":1,"category":"播種時期","relevance_nishiaizu":"low"},{"id":89,"text":"マスマキウグイ","region":"陸奥下北郡田名部町附近","indicator":"ウグイの遡上","crop":"大豆","task":"播種","month_approx":[4,5],"source_count":1,"category":"播種時期","relevance_nishiaizu":"high"},{"id":90,"text":"夏の土用に入ってホトトギスが鳴くと豊作","region":"陸中五葉山南麓","indicator":"ホトトギスの鳴き声","crop":null,"task":null,"month_approx":[7,8],"source_count":1,"category":"豊凶占い","relevance_nishiaizu":"high"},{"id":91,"text":"大根の土用の露を受けて三日してから蒔け","region":"下野塩谷郡湯西","indicator":"土用の露","crop":"大根","task":"播種","month_approx":[7,8],"source_count":1,"category":"播種時期","relevance_nishiaizu":"medium"},{"id":92,"text":"水雉が稲田に巣くうとその稲は豊作だ","region":"佐渡中央部","indicator":"水雉の営巣","crop":"米","task":null,"month_approx":[6,8],"source_count":1,"category":"豊凶占い","relevance_nishiaizu":"medium"},{"id":93,"text":"椿拭いて水うち崩す雪の峯　青々","region":null,"indicator":"椿の手入れ","crop":null,"task":null,"month_approx":[7,8],"source_count":1,"category":"その他","relevance_nishiaizu":"low"},{"id":94,"text":"夏の土用に東風三日吹き米の相場が下がる","region":"紀伊西牟婁郡万呂村附近","indicator":"東風","crop":"米","task":null,"month_approx":[7,8],"source_count":1,"category":"豊凶占い","relevance_nishiaizu":"low"},{"id":95,"text":"土用の稲妻、千石光り","region":"紀伊西牟婁郡万呂村附近","indicator":"土用の稲妻","crop":"米","task":null,"month_approx":[7,8],"source_count":1,"category":"豊凶占い","relevance_nishiaizu":"medium"},{"id":96,"text":"麻のよく成長するその翌年は米が豊作なり","region":"羽前最上郡東小国村坪田附近","indicator":"麻の成長","crop":"米","task":null,"month_approx":[7,9],"source_count":1,"category":"豊凶占い","relevance_nishiaizu":"high"},{"id":97,"text":"ツクツクボウシが多ければ米は高い","region":"肥前平戸島志々伎附近","indicator":"ツクツクボウシの鳴き声","crop":"米","task":null,"month_approx":[8,9],"source_count":1,"category":"豊凶占い","relevance_nishiaizu":"low"},{"id":98,"text":"ツクツク法師の鳴く節の多い程米の値が上る","region":"福岡郊外","indicator":"ツクツクボウシの鳴き声","crop":"米","task":null,"month_approx":[8,9],"source_count":1,"category":"豊凶占い","relevance_nishiaizu":"low"},{"id":99,"text":"ツクツクボーシ鳴き出せば柿が食える","region":"紀伊東牟婁郡四村附近","indicator":"ツクツクボウシの鳴き声","crop":"柿","task":null,"month_approx":[8,9],"source_count":1,"category":"収穫時期","relevance_nishiaizu":"medium"},{"id":100,"text":"蕎麦蒔きトンボ","region":"紀伊西牟婁郡二川村附近","indicator":"トンボの出現","crop":"蕎麦","task":"播種","month_approx":[8,9],"source_count":1,"category":"播種時期","relevance_nishiaizu":"medium"},{"id":101,"text":"稲妻すれば稲が実り出す","region":"紀伊和歌山附近","indicator":"稲妻","crop":"米","task":null,"month_approx":[8,9],"source_count":1,"category":"その他","relevance_nishiaizu":"medium"},{"id":102,"text":"ゾウミの多く実の生る年は凶作","region":"陸奥下北郡東通村大利附近","indicator":"ゾウミ（ガマズミ）の実","crop":null,"task":null,"month_approx":[9,10],"source_count":1,"category":"豊凶占い","relevance_nishiaizu":"high"},{"id":103,"text":"シビトバナの咲く時は蕎麦の蒔時","region":"紀伊木本町附近","indicator":"彼岸花の開花","crop":"蕎麦","task":"播種","month_approx":[9,10],"source_count":1,"category":"播種時期","relevance_nishiaizu":"low"},{"id":104,"text":"松茸の多い年は米が不作","region":"紀伊","indicator":"松茸の豊作","crop":"米","task":null,"month_approx":[9,10],"source_count":1,"category":"豊凶占い","relevance_nishiaizu":"low"},{"id":105,"text":"雨栗、日柿","region":"紀伊","indicator":"降水パターン","crop":"栗・柿","task":null,"month_approx":[9,11],"source_count":1,"category":"豊凶占い","relevance_nishiaizu":"medium"},{"id":106,"text":"椎の豊年、米が不作","region":"紀伊田辺附近","indicator":"椎の実の豊作","crop":"米","task":null,"month_approx":[10,11],"source_count":1,"category":"豊凶占い","relevance_nishiaizu":"low"},{"id":107,"text":"ハネ（槐）の実の多い年は米がよく出来る","region":"羽前最上郡東小国村坪田附近","indicator":"槐の実","crop":"米","task":null,"month_approx":[9,10],"source_count":1,"category":"豊凶占い","relevance_nishiaizu":"high"},{"id":108,"text":"杉の実の多い年は米が良く出来る","region":null,"indicator":"杉の実","crop":"米","task":null,"month_approx":[10,11],"source_count":1,"category":"豊凶占い","relevance_nishiaizu":"medium"},{"id":109,"text":"百舌鳥の初声に栗が笑み始める","region":"下野宇都宮附近","indicator":"モズの初鳴き","crop":"栗","task":null,"month_approx":[9,10],"source_count":1,"category":"収穫時期","relevance_nishiaizu":"medium"},{"id":110,"text":"百舌鳥が鳴くと栗が笑む。富士が白くなると甘柿が甘くなる","region":"武蔵北多摩郡千歳村附近","indicator":"モズの鳴き声・初冠雪","crop":"栗・柿","task":null,"month_approx":[9,11],"source_count":1,"category":"収穫時期","relevance_nishiaizu":"medium"},{"id":111,"text":"鹿が鳴くから栗を刈らねばならぬ","region":"上野利根川上流湯小舎附近","indicator":"鹿の鳴き声","crop":"栗","task":"収穫","month_approx":[9,10],"source_count":1,"category":"収穫時期","relevance_nishiaizu":"medium"},{"id":112,"text":"イツキの食える時は稲の刈り時","region":"伯者東伯郡竹田村穴鴨附近","indicator":"イツキの実","crop":"米","task":"刈り取り","month_approx":[9,10],"source_count":1,"category":"収穫時期","relevance_nishiaizu":"low"},{"id":113,"text":"コスモスの花が咲くと松茸が出初める","region":"丹波周山地方","indicator":"コスモスの開花","crop":"松茸","task":null,"month_approx":[9,10],"source_count":1,"category":"収穫時期","relevance_nishiaizu":"low"},{"id":114,"text":"椎茸の梓はホソノの樹を截いて二葉三葉落ちる頃が旬","region":"紀伊","indicator":"落葉","crop":"椎茸","task":null,"month_approx":[10,11],"source_count":1,"category":"収穫時期","relevance_nishiaizu":"low"},{"id":115,"text":"秋の土用に入れば椎茸の代り旬","region":null,"indicator":"秋の土用","crop":"椎茸","task":null,"month_approx":[10,11],"source_count":1,"category":"収穫時期","relevance_nishiaizu":"medium"},{"id":116,"text":"ガンタケ","region":"肥前","indicator":"雁の渡来","crop":"茸","task":null,"month_approx":[10,11],"source_count":1,"category":"収穫時期","relevance_nishiaizu":"low"},{"id":117,"text":"麦蒔鳥","region":"遠江常陸上総","indicator":"セキレイの渡来","crop":"麦","task":"播種","month_approx":[10,11],"source_count":1,"category":"播種時期","relevance_nishiaizu":"medium"},{"id":118,"text":"麦蒔雁","region":"隠岐海士郡西海岸","indicator":"雁の渡来","crop":"麦","task":"播種","month_approx":[10,11],"source_count":1,"category":"播種時期","relevance_nishiaizu":"medium"},{"id":119,"text":"稲の穂が出たら真鴨が渡って来る","region":"隠岐海士郡海士村附近","indicator":"真鴨の渡来","crop":"米","task":null,"month_approx":[9,10],"source_count":1,"category":"その他","relevance_nishiaizu":"low"},{"id":120,"text":"稲の穂のうれる頃は松茸の出時だ。麦の穂のうれる頃は松茸の出時だ","region":"肥前東松浦郡入野附近","indicator":"稲穂の成熟","crop":"松茸","task":null,"month_approx":[9,10],"source_count":1,"category":"収穫時期","relevance_nishiaizu":"low"},{"id":121,"text":"楢（くぬぎ）の葉が栗色になると小麦を蒔け","region":"筑後浮羽郡本木庄野附近","indicator":"クヌギの紅葉","crop":"小麦","task":"播種","month_approx":[10,11],"source_count":1,"category":"播種時期","relevance_nishiaizu":"medium"},{"id":122,"text":"地主さんの紅葉赤なり女蒔時じゃ","region":"紀伊東牟婁郡四村","indicator":"紅葉","crop":"麦","task":"播種","month_approx":[10,11],"source_count":1,"category":"播種時期","relevance_nishiaizu":"low"},{"id":123,"text":"銀杏の葉の黄ばむと小麦を蒔かにゃならぬ","region":"筑後八女郡横山村附近","indicator":"イチョウの黄葉","crop":"小麦","task":"播種","month_approx":[10,11],"source_count":1,"category":"播種時期","relevance_nishiaizu":"medium"},{"id":124,"text":"高山寺の銀杏があこなるさか麦蒔しょうか","region":"紀伊西牟婁郡那智万呂附近","indicator":"イチョウの黄葉","crop":"麦","task":"播種","month_approx":[10,11],"source_count":1,"category":"播種時期","relevance_nishiaizu":"low"},{"id":125,"text":"麦の蒔きしおは公孫樹の葉見て","region":"筑前宗像郡上西郷村内殿附近","indicator":"イチョウの黄葉","crop":"麦","task":"播種","month_approx":[10,11],"source_count":1,"category":"播種時期","relevance_nishiaizu":"low"},{"id":126,"text":"銀杏の葉が黄ばむと麦蒔に油断が出来ぬ","region":"紀伊","indicator":"イチョウの黄葉","crop":"麦","task":"播種","month_approx":[10,11],"source_count":1,"category":"播種時期","relevance_nishiaizu":"medium"},{"id":127,"text":"麦蒔鳥","region":"筑後三潴郡大塚村附近","indicator":"ミヤマガラスの渡来","crop":"麦","task":"播種","month_approx":[10,11],"source_count":1,"category":"播種時期","relevance_nishiaizu":"low"},{"id":128,"text":"カラス星が浅間山の上の十間許に出ると麦の蒔き時","region":"紀伊木本町","indicator":"カラス星（星の位置）","crop":"麦","task":"播種","month_approx":[10,11],"source_count":1,"category":"播種時期","relevance_nishiaizu":"low"},{"id":129,"text":"冬至の晩は大根畑が香がする","region":"紀伊有田郡中部","indicator":"冬至","crop":"大根","task":null,"month_approx":[12,12],"source_count":1,"category":"その他","relevance_nishiaizu":"medium"},{"id":130,"text":"公孫樹や柳の葉の塊と落ちて終えば翌年は豊年","region":"陸奥三戸郡田子長坂附近","indicator":"落葉の様子","crop":null,"task":null,"month_approx":[11,12],"source_count":1,"category":"豊凶占い","relevance_nishiaizu":"high"},{"id":131,"text":"木の葉の落ちて裏かえり居ると翌年は風、雨に遇って凶年なり","region":"美作香々美村地方","indicator":"落葉の裏返り","crop":null,"task":null,"month_approx":[11,12],"source_count":1,"category":"豊凶占い","relevance_nishiaizu":"low"},{"id":132,"text":"天の川が頭の上に来りや新米が食える","region":"紀伊西牟婁郡万呂附近","indicator":"天の川の位置","crop":"米","task":null,"month_approx":[9,10],"source_count":1,"category":"収穫時期","relevance_nishiaizu":"low"},{"id":133,"text":"蕎麦畦","region":"佐渡","indicator":null,"crop":"蕎麦","task":null,"month_approx":[9,10],"source_count":1,"category":"その他","relevance_nishiaizu":"medium"},{"id":134,"text":"雪水が出れば豊年","region":"陸奥東通村附近","indicator":"雪解け水","crop":null,"task":null,"month_approx":[3,4],"source_count":1,"category":"豊凶占い","relevance_nishiaizu":"high"},{"id":135,"text":"稲麹の多い年は酒の出来がよい","region":"筑後地方","indicator":"稲麹の量","crop":"米（酒造用）","task":null,"month_approx":[9,10],"source_count":1,"category":"豊凶占い","relevance_nishiaizu":"low"},{"id":136,"text":"寒九に雨降れば翌年豊作","region":null,"indicator":"寒九の雨","crop":null,"task":null,"month_approx":[1,1],"source_count":1,"category":"豊凶占い","relevance_nishiaizu":"medium"},{"id":137,"text":"寒中に地震あれば翌春の豆に植無し","region":null,"indicator":"寒中の地震","crop":"豆","task":null,"month_approx":[1,2],"source_count":1,"category":"豊凶占い","relevance_nishiaizu":"medium"},{"id":138,"text":"鰤の厚い年は実りがよくない","region":"陸奥東通村附近","indicator":"鰤の身の厚さ","crop":null,"task":null,"month_approx":[12,1],"source_count":1,"category":"豊凶占い","relevance_nishiaizu":"high"},{"id":139,"text":"ニワトコの芽出しを見てから桑を芽出肥をやれ","region":"栃木県南部","indicator":"ニワトコの芽吹き","crop":"桑","task":"施肥","month_approx":[1,2],"source_count":1,"category":"その他","relevance_nishiaizu":"medium"},{"id":178,"text":"いもおやし","region":"鹿児島","indicator":"アオバズクの鳴き声","crop":"サトイモ","task":"植え付け","month_approx":[5,6],"source_count":3,"category":"播種時期","relevance_nishiaizu":"low"},{"id":179,"text":"梅雨入りに蕎麦を蒔け","region":null,"indicator":"梅雨入り","crop":"蕎麦","task":"播種","month_approx":[6,7],"source_count":3,"category":"播種時期","relevance_nishiaizu":"medium"},{"id":180,"text":"土用に種を蒔くな","region":null,"indicator":"土用","crop":null,"task":"播種（禁忌）","month_approx":[7,8],"source_count":3,"category":"播種時期","relevance_nishiaizu":"medium"},{"id":181,"text":"彼岸過ぎの種は蒔くな","region":null,"indicator":"秋の彼岸","crop":null,"task":"播種（禁忌）","month_approx":[9,10],"source_count":3,"category":"播種時期","relevance_nishiaizu":"medium"},{"id":182,"text":"霜月の二十日大師は百姓の年取り","region":null,"indicator":"霜月二十日","crop":null,"task":null,"month_approx":[11,12],"source_count":3,"category":"その他","relevance_nishiaizu":"medium"}];
+
+function getShizenReki(month) {
+  const matching = SHIZEN_REKI.filter(e => {
+    if (!e.month_approx) return false;
+    const [s, end] = e.month_approx;
+    if (s <= end) return month >= s && month <= end;
+    return month >= s || month <= end;
+  });
+  const relOrder = {high:0, medium:1, low:2, none:3};
+  matching.sort((a, b) => {
+    const ra = relOrder[a.relevance_nishiaizu] ?? 3;
+    const rb = relOrder[b.relevance_nishiaizu] ?? 3;
+    if (ra !== rb) return ra - rb;
+    return (b.source_count||0) - (a.source_count||0);
+  });
+  return matching.slice(0, 4);
+}
 
 // ===== 七十二候（黄経昇順 0→355） =====
 const KO72 = [
@@ -1360,6 +1378,40 @@ function render() {
     </div>
   </div>`;
 
+  // ===== 自然暦カード =====
+  const srMonth = now.getMonth() + 1;
+  const srItems = getShizenReki(srMonth);
+  if (srItems.length > 0) {
+    let srHtml = `<div class="card">
+      <h2>先人の自然暦</h2>
+      <div style="font-size:0.78em;color:var(--text-dim);text-align:center;margin-bottom:10px">
+        加藤・田淵（2016）全182件より — ${srMonth}月に関わる伝承
+      </div>`;
+    srItems.forEach(e => {
+      const relBadge = e.relevance_nishiaizu === 'high'
+        ? '<span style="display:inline-block;background:var(--accent);color:#fff;font-size:0.65em;padding:1px 5px;border-radius:3px;margin-left:6px;vertical-align:middle">会津周辺</span>'
+        : '';
+      const srcDots = e.source_count ? '●'.repeat(e.source_count) + '○'.repeat(3 - e.source_count) : '';
+      const cropTag = e.crop ? `<span style="font-size:0.75em;color:var(--accent);margin-left:4px">${e.crop}</span>` : '';
+      const taskTag = e.task ? `<span style="font-size:0.75em;color:var(--fire);margin-left:4px">${e.task}</span>` : '';
+      srHtml += `
+        <div style="padding:10px 0;border-top:1px solid var(--border)">
+          <div style="font-size:1em;line-height:1.6">「${e.text}」${relBadge}</div>
+          <div style="font-size:0.78em;color:var(--text-dim);margin-top:4px">
+            ${e.region ? e.region : '各地'}${e.indicator ? '　指標: ' + e.indicator : ''}
+            ${srcDots ? '　<span title="出典数">信頼度 ' + srcDots + '</span>' : ''}
+            ${cropTag}${taskTag}
+          </div>
+        </div>`;
+    });
+    srHtml += `
+      <div style="font-size:0.7em;color:var(--text-dim);text-align:right;margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">
+        該当 ${SHIZEN_REKI.filter(e => e.month_approx && ((e.month_approx[0] <= e.month_approx[1]) ? (srMonth >= e.month_approx[0] && srMonth <= e.month_approx[1]) : (srMonth >= e.month_approx[0] || srMonth <= e.month_approx[1]))).length} 件中 上位${srItems.length}件を表示
+      </div>
+    </div>`;
+    h += srHtml;
+  }
+
   // ===== ② 今日の天気 =====
   h += `<div class="card" id="weatherCard">
     <h2>今日の天気 — ${CFG.name}</h2>
@@ -1461,6 +1513,13 @@ function render() {
     <h2>農地の地形</h2>
     <div id="locationList"></div>
     <div id="map"></div>
+    <div style="display:flex;align-items:center;gap:8px;margin:8px 0 4px 0;flex-wrap:wrap">
+      <button id="soilToggleBtn" onclick="toggleSoilLayer()" style="background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:5px 12px;font-size:0.8em;cursor:pointer;display:flex;align-items:center;gap:4px">
+        <span style="font-size:1.1em">🗺</span> 土壌図
+      </button>
+      <span id="soilLegendHint" style="font-size:0.72em;color:var(--text-dim);display:none">農研機構 日本土壌インベントリー（CC BY 4.0）</span>
+    </div>
+    <div id="soilInfoBar" style="display:none;margin:4px 0 6px 0;padding:6px 10px;background:var(--surface);border-radius:6px;font-size:0.8em;border:1px solid var(--border)"></div>
     <div class="map-instructions">地図上をクリックして場所を選択 → 名前をつけて保存できます</div>
     <div id="locationSaveUI" style="display:none;margin:10px 0;text-align:center">
       <input id="locNameInput" type="text" placeholder="地点名（例：メイン畑、田んぼ）"
@@ -1535,6 +1594,14 @@ if (typeof Astronomy !== 'undefined') {
     const gasInput = document.getElementById('gasUrlInput');
     if (gasInput && savedGasUrl) gasInput.value = savedGasUrl;
 
+    // ===== 土壌図レイヤー（日本土壌インベントリー） =====
+    _soilLayer = L.tileLayer('https://soil-inventory.rad.naro.go.jp/tile/figure/{z}/{x}/{y}.png', {
+      maxZoom: 15, minZoom: 6, opacity: 0.55, attribution: '土壌図: <a href="https://soil-inventory.rad.naro.go.jp/" target="_blank">農研機構</a>（CC BY 4.0）'
+    });
+    _soilLineLayer = L.tileLayer('https://soil-inventory.rad.naro.go.jp/tile/figureLine/{z}/{x}/{y}.png', {
+      maxZoom: 15, minZoom: 10, opacity: 0.6
+    });
+
     // クリックで地点変更
     _leafletMap.on('click', async function(e) {
       const { lat, lng } = e.latlng;
@@ -1551,6 +1618,72 @@ if (typeof Astronomy !== 'undefined') {
   }
 } else {
   document.getElementById('app').innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-dim)">astronomy-engine の読み込みに失敗しました。インターネット接続を確認してください。</div>';
+}
+
+// ===== 土壌図トグル =====
+const SOIL_TYPES = {
+  'A':'造成土','B':'有機質土','C':'ポドソル',
+  'D1':'未熟黒ボク土','D2':'グライ黒ボク土','D3':'多湿黒ボク土','D4':'褐色黒ボク土','D5':'非アロフェン質黒ボク土','D6':'アロフェン質黒ボク土',
+  'E1':'石灰性暗赤色土','E2':'酸性暗赤色土','E3':'塩基性暗赤色土',
+  'F1':'低地水田土','F2':'グライ低地土','F3':'灰色低地土','F4':'褐色低地土','F5':'未熟低地土',
+  'G1':'粘土集積赤黄色土','G2':'風化変質赤黄色土',
+  'H1':'停滞水グライ土','H2':'疑似グライ土',
+  'I1':'褐色森林土',
+  'J1':'火山放出物未熟土','J2':'砂質未熟土','J3':'固結岩屑土','J4':'陸成未熟土'
+};
+const SOIL_COLORS = {
+  'A':'#c8c8c8','B':'#4a2800','C':'#e0b0ff',
+  'D1':'#ccaa00','D2':'#aa8800','D3':'#887000','D4':'#bb9933','D5':'#997722','D6':'#ddbb44',
+  'E1':'#cc3333','E2':'#aa2222','E3':'#dd5555',
+  'F1':'#66aadd','F2':'#4488bb','F3':'#88ccee','F4':'#aabb88','F5':'#99ccaa',
+  'G1':'#ee8844','G2':'#dd7733',
+  'H1':'#77aaaa','H2':'#669999',
+  'I1':'#558844',
+  'J1':'#bbaa99','J2':'#ddccaa','J3':'#998877','J4':'#ccbbaa'
+};
+const SOIL_DESC = {
+  'D4':'火山灰由来。保水力が高く、リンの固定が強い。有機物が豊富。',
+  'D5':'非アロフェン質の黒ボク土。リン吸収係数がやや低い。',
+  'D6':'アロフェン質の黒ボク土。リン酸固定力が非常に高い。堆肥の施用が重要。',
+  'F1':'水田に長期間利用されてきた低地土。灰色〜青灰色の還元層を持つ。',
+  'F3':'灰色を呈する低地土。排水が比較的良い水田に多い。会津地方の主要な水田土壌。',
+  'F4':'褐色を呈する低地土。排水良好。畑作にも適する。',
+  'I1':'山地・丘陵地に広く分布。森林下で発達。排水良好だが養分は流亡しやすい。',
+  'H2':'排水不良で地下水位が高い。暗渠排水の整備が重要。'
+};
+
+function toggleSoilLayer() {
+  if (!_leafletMap || !_soilLayer) return;
+  _soilVisible = !_soilVisible;
+  const btn = document.getElementById('soilToggleBtn');
+  const hint = document.getElementById('soilLegendHint');
+  const infoBar = document.getElementById('soilInfoBar');
+
+  if (_soilVisible) {
+    _soilLayer.addTo(_leafletMap);
+    _soilLineLayer.addTo(_leafletMap);
+    if (btn) btn.style.background = 'var(--accent)';
+    if (btn) btn.style.color = '#fff';
+    if (btn) btn.style.borderColor = 'var(--accent)';
+    if (hint) hint.style.display = 'inline';
+    // 凡例を表示
+    if (infoBar) {
+      let legend = '<div style="display:flex;flex-wrap:wrap;gap:4px 10px;font-size:0.85em">';
+      const mainTypes = ['D4','D5','D6','F1','F3','F4','I1','H2'];
+      mainTypes.forEach(k => {
+        legend += `<span style="display:inline-flex;align-items:center;gap:3px"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${SOIL_COLORS[k] || '#999'}"></span>${SOIL_TYPES[k] || k}</span>`;
+      });
+      legend += '</div>';
+      infoBar.innerHTML = legend;
+      infoBar.style.display = 'block';
+    }
+  } else {
+    _leafletMap.removeLayer(_soilLayer);
+    _leafletMap.removeLayer(_soilLineLayer);
+    if (btn) { btn.style.background = 'var(--surface)'; btn.style.color = 'var(--text)'; btn.style.borderColor = 'var(--border)'; }
+    if (hint) hint.style.display = 'none';
+    if (infoBar) infoBar.style.display = 'none';
+  }
 }
 
 function renderLocationList() {
