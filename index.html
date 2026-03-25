@@ -1383,10 +1383,7 @@ function render() {
   const srItems = getShizenReki(srMonth);
   if (srItems.length > 0) {
     let srHtml = `<div class="card">
-      <h2>先人の自然暦</h2>
-      <div style="font-size:0.78em;color:var(--text-dim);text-align:center;margin-bottom:10px">
-        加藤・田淵（2016）全182件より — ${srMonth}月に関わる伝承
-      </div>`;
+      <h2>先人の自然暦</h2>`;
     srItems.forEach(e => {
       const relBadge = e.relevance_nishiaizu === 'high'
         ? '<span style="display:inline-block;background:var(--accent);color:#fff;font-size:0.65em;padding:1px 5px;border-radius:3px;margin-left:6px;vertical-align:middle">会津周辺</span>'
